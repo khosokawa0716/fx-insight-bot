@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // デフォルトで全て拒否
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 管理者チェック関数
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    // news_events コレクション
+    // ニュース記事とAI分析結果
+    match /news_events/{newsId} {
+      allow read, write: if isAdmin();
+    }
+
+    // trades コレクション
+    // 取引履歴
+    match /trades/{tradeId} {
+      allow read, write: if isAdmin();
+    }
+
+    // positions コレクション
+    // 現在保有中のポジション
+    match /positions/{positionId} {
+      allow read, write: if isAdmin();
+    }
+
+    // system_config コレクション
+    // システム設定(ルールバージョン、閾値など)
+    match /system_config/{configId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

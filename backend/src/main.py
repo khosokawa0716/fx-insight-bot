@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
+from src.utils.firestore_client import FirestoreClient
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -44,6 +45,13 @@ async def health():
         "firestore_db": settings.firestore_database_id,
         "location": settings.gcp_location,
     }
+
+
+@app.get("/test/firestore")
+async def test_firestore():
+    """Test Firestore connection"""
+    result = FirestoreClient.test_connection()
+    return result
 
 
 if __name__ == "__main__":

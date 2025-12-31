@@ -7,7 +7,7 @@
 - **データ保持期間**: Firestore 3ヶ月、BigQuery 永久保存
 - **構造**: サブコレクション不要、非正規化で設計
 - **セキュリティ**: 管理者のみアクセス可能
-- **詳細ドキュメント**: [FIRESTORE_DESIGN.md](./FIRESTORE_DESIGN.md)
+- **詳細ドキュメント**: [FIRESTORE_DESIGN.md](design/FIRESTORE_DESIGN.md)
 - **BigQueryエクスポート**: 1日1回(午前2時)
 
 ### ✅ バックエンドフレームワーク
@@ -117,9 +117,11 @@
 
 ## 参考ドキュメント
 
-- [要件定義書](./requirements.md)
-- [Firestore設計書](./FIRESTORE_DESIGN.md)
-- [開発ガイド](./DEVELOPMENT_GUIDE.md)
+- [ドキュメント一覧](./README.md)
+- [要件定義書](design/requirements.md)
+- [Firestore設計書](design/FIRESTORE_DESIGN.md)
+- [開発ガイド](guides/DEVELOPMENT_GUIDE.md)
+- [進捗記録](progress/)
 
 ---
 
@@ -129,7 +131,8 @@
 
 | 日付 | 変更内容 |
 |------|---------|
+| 2025-12-31 | Phase 0-1完了、ドキュメント整理、リンク修正 |
 | 2025-12-29 | 未確定事項をすべて決定、決定済み事項セクションに追加 |
 | 2025-01-13 | 初版作成 |
 
-**最終更新日**: 2025-12-29
+**最終更新日**: 2025-12-31

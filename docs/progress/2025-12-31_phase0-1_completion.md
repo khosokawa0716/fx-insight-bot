@@ -198,10 +198,12 @@ fx-insight-bot/
 ### 実装予定
 
 #### 1. RSS取得機能（1-2時間）
-- [ ] `src/services/news_collector.py` 作成
-- [ ] Bloomberg、Reuters、Yahoo!ファイナンスのRSSフィード取得
-- [ ] feedparserを使用したRSSパース
-- [ ] 重複チェック機能
+- [x] `src/services/news_collector.py` 作成
+- [x] Bloomberg、Reuters、Yahoo!ファイナンスのRSSフィード取得
+- [x] feedparserを使用したRSSパース
+- [x] 重複チェック機能
+- [x] 包括的なテストコード作成（17テストケース、全てパス）
+- [x] 実際のRSSフィード取得の動作確認完了
 
 #### 2. Firestoreへの保存機能（1時間）
 - [ ] `news_events` コレクションへの保存

@@ -4,7 +4,7 @@ Tests for News Collector Service
 
 import pytest
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 import feedparser
 
 from src.services.news_collector import (

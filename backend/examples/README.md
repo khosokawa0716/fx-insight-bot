@@ -21,24 +21,6 @@ Gemini Grounding with Google Search機能のテストスクリプト
 
 ---
 
-### 2. test_rss_gemini_analysis.py
-
-RSS + Gemini 3 Flash分析機能のテストスクリプト
-
-**目的:**
-- 既存のRSS News Collectorとの連携確認
-- Gemini 3 Flashによるニュース分析機能の検証
-- JSON出力の安定性確認
-- センチメント分析の精度評価
-
-**テスト内容:**
-1. RSSからニュース収集
-2. Gemini 3 Flashで分析
-3. 分析結果のサマリー表示
-4. コスト試算
-
----
-
 ## 🚀 実行方法
 
 ### 事前準備
@@ -64,7 +46,7 @@ RSS + Gemini 3 Flash分析機能のテストスクリプト
    ```bash
    cd backend
    source venv/bin/activate
-   pip install google-genai google-cloud-aiplatform feedparser requests beautifulsoup4
+   pip install google-genai
    ```
 
 5. **Vertex AI APIの有効化**
@@ -121,50 +103,7 @@ AIの回答:
 
 ---
 
-### test_rss_gemini_analysis.py の実行
-
-```bash
-cd backend
-source venv/bin/activate
-
-# 環境変数を設定
-export GCP_PROJECT_ID="your-project-id"
-export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account-key.json"
-
-# スクリプト実行
-python examples/test_rss_gemini_analysis.py
-```
-
-**実行例:**
-```
-============================================================
-RSS + Gemini 3 Flash分析 - 動作確認
-============================================================
-
-✅ 環境変数チェック完了
-   GCP_PROJECT_ID: fx-insight-bot-12345
-   GOOGLE_APPLICATION_CREDENTIALS: /path/to/key.json
-
-============================================================
-STEP 1: RSSからニュース収集
-============================================================
-
-✅ 収集完了: 49件のニュース
-
-取得したニュース（最初の3件）:
-
-1. [Yahoo Finance] Investors should beware of AI's circular...
-   URL: https://finance.yahoo.com/news/...
-   公開日: 2025-12-30 18:31:52+00:00
-
-...
-```
-
----
-
 ## 📊 期待される結果
-
-### test_gemini_grounding.py
 
 **成功時:**
 - ✅ TEST 1: 基本的なGrounding機能 - success
@@ -176,20 +115,6 @@ STEP 1: RSSからニュース収集
 - JSON形式で正しく出力されているか
 - ソースURLが付与されているか
 - センチメント分析・影響度評価が妥当か
-
----
-
-### test_rss_gemini_analysis.py
-
-**成功時:**
-- ✅ RSS収集: 40-50件程度
-- ✅ Gemini分析: 5/5件成功
-
-**確認ポイント:**
-- RSSから正常にニュースが取得できているか
-- Gemini分析が正常に完了しているか
-- JSON出力のパースエラー率が低いか（0件が理想）
-- センチメント・影響度の評価が妥当か
 
 ---
 
@@ -235,58 +160,9 @@ google.api_core.exceptions.PermissionDenied: 403 Vertex AI API has not been used
 2. プロンプトを調整（より明確なJSON出力指示）
 3. temperatureを低く設定（0.1-0.2）
 
----
-
-### エラー: RSS取得失敗
-
-```
-✅ 収集完了: 0件のニュース
-```
-
-**原因:**
-- RSSフィードのURLが無効
-- ネットワークエラー
-
-**対策:**
-1. `backend/src/services/news_collector.py` のRSS URLを確認
-2. インターネット接続を確認
-3. 別のRSSフィードURLを試す
-
----
-
-## 📈 次のステップ
-
-### 短期（今すぐ）
-
-1. ✅ **両方のスクリプトを実行**
-   - Grounding機能の動作確認
-   - RSS + Gemini分析の動作確認
-
-2. ✅ **結果を評価**
-   - JSON出力の安定性
-   - 分析精度
-   - コスト
-
-3. ⏳ **最終方式を決定**
-   - RSS + Gemini分析で開始（推奨）
-   - またはGrounding方式を採用
-
-### 中期（1-2週間後）
-
-1. ⏳ **本実装開始**
-   - Gemini分析機能の実装
-   - Firestoreへの保存機能
-   - エラーハンドリング強化
-
-2. ⏳ **Grounding機能の検証**（選択した場合）
-   - 精度比較
-   - コスト測定
-
----
-
 ## 📚 関連ドキュメント
 
-- [GEMINI_GROUNDING_EVALUATION.md](../../docs/design/GEMINI_GROUNDING_EVALUATION.md) - Grounding機能の評価結果
+- [2026-01-03_gemini_grounding_validation.md](../../docs/progress/2026-01-03_gemini_grounding_validation.md) - Grounding機能の検証結果
 - [COST_ESTIMATE.md](../../docs/design/COST_ESTIMATE.md) - コスト試算
 - [AI_COMPARISON.md](../../docs/design/AI_COMPARISON.md) - AI選定の経緯
 - [requirements.md](../../docs/design/requirements.md) - 要件定義
@@ -294,4 +170,4 @@ google.api_core.exceptions.PermissionDenied: 403 Vertex AI API has not been used
 ---
 
 **作成日**: 2026-01-03
-**最終更新**: 2026-01-03
+**最終更新**: 2026-01-04

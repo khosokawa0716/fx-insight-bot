@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 # Type Aliases
 Sentiment = Literal[-2, -1, 0, 1, 2]
-TimeHorizon = Literal["immediate", "short", "mid", "long"]
+TimeHorizon = Literal["immediate", "short-term", "medium-term", "long-term"]
 Signal = Literal["BUY_CANDIDATE", "SELL_CANDIDATE", "RISK_OFF", "IGNORE"]
 TradeSide = Literal["buy", "sell"]
 TradeStatus = Literal["open", "closed", "cancelled"]
@@ -26,12 +26,13 @@ class NewsEvent(BaseModel):
     collected_at: datetime
     content_raw: Optional[str] = None
     summary_raw: Optional[str] = None
-    topic: str
+    topic: Optional[str] = None
     sentiment: Sentiment
-    impact_usdjpy: int = Field(ge=0, le=10)
-    impact_eurusd: int = Field(ge=0, le=10)
+    impact_usdjpy: int = Field(ge=1, le=5)
+    impact_eurjpy: int = Field(ge=1, le=5)
     time_horizon: TimeHorizon
     summary_ai: str
+    rationale: Optional[str] = None
     signal: Signal
     rule_version: str
     tweet_text: Optional[str] = None
@@ -42,17 +43,18 @@ class NewsEvent(BaseModel):
         json_schema_extra = {
             "example": {
                 "news_id": "news_20250101_001",
-                "source": "Reuters",
+                "source": "Gemini Grounding",
                 "title": "日銀が金利据え置き決定",
                 "url": "https://example.com/news/12345",
                 "published_at": "2025-01-01T10:00:00Z",
                 "collected_at": "2025-01-01T10:05:00Z",
                 "topic": "金融政策",
                 "sentiment": 0,
-                "impact_usdjpy": 7,
-                "impact_eurusd": 3,
-                "time_horizon": "immediate",
+                "impact_usdjpy": 4,
+                "impact_eurjpy": 2,
+                "time_horizon": "short-term",
                 "summary_ai": "日銀が政策金利を据え置き。市場は予想通りと受け止め。",
+                "rationale": "金融政策の現状維持により市場への影響は限定的",
                 "signal": "IGNORE",
                 "rule_version": "v1.0",
                 "is_tweeted": False,
@@ -156,12 +158,12 @@ class SystemConfig(BaseModel):
                 "config_data": {
                     "buy_conditions": {
                         "sentiment_min": 1,
-                        "impact_usdjpy_min": 5,
+                        "impact_usdjpy_min": 4,
                         "topics": ["金融政策", "経済指標"],
                     },
                     "sell_conditions": {
                         "sentiment_max": -1,
-                        "impact_usdjpy_min": 5,
+                        "impact_usdjpy_min": 4,
                     },
                 },
                 "created_at": "2025-01-01T00:00:00Z",

@@ -15,12 +15,12 @@
 ### 2.1 ニュース収集・分析機能
 
 #### 2.1.1 ニュース収集
-- **情報源**: Reuters、Bloomberg等のRSSフィード
+- **情報源**: Gemini Grounding with Google Search（リアルタイム検索）
 - **収集頻度**: 2回/日
 - **対象言語**: 日本語・英語
 - **保存先**: Firestore（最新）、BigQuery（履歴）
 
-#### 2.1.2 AI分析（Vertex AI - Gemini 1.5 Flash）
+#### 2.1.2 AI分析（Vertex AI - Gemini 3 Flash）
 - **センチメント分析**: 5段階評価
   - Very Negative (-2)
   - Negative (-1)
@@ -33,7 +33,7 @@
   - 短期（1日以内）
   - 中期（1週間以内）
   - 長期（1ヶ月以上）
-- **採用理由**: コスト削減(OpenAI比75%減)、GCP統合
+- **採用理由**: GCP統合、Grounding機能による最新ニュース取得
 
 ### 2.2 自動売買機能
 
@@ -111,7 +111,7 @@
 - 認証: Webダッシュボードは認証必須
 
 ### 3.4 コスト制約
-- Vertex AI (Gemini 1.5 Flash): 月額約1円
+- Vertex AI (Gemini 3 Flash + Grounding): 月額約37円
 - GCP利用料: Firestore + BigQuery + Cloud Run 合計1,000円以内
 - 取引コスト: スプレッド考慮
 
@@ -133,7 +133,8 @@
 
 ### 4.2 外部API / GCPサービス
 - GMOコイン FX API (WebSocket + REST)
-- Vertex AI (Gemini 1.5 Flash)
+- Vertex AI (Gemini 3 Flash)
+  - Grounding with Google Search機能
 - X API v2
 
 ## 5. 開発フェーズ
@@ -202,3 +203,4 @@
 | 2025-12-13 | 1.0.0 | 初版作成 |
 | 2025-12-28 | 1.1.0 | 取引業者をOANDAからGMOコインに変更 |
 | 2025-12-28 | 1.2.0 | AI基盤をOpenAI APIからVertex AIに変更 |
+| 2026-01-03 | 1.3.0 | Gemini 3 Flash採用、Grounding機能追加、段階的移行計画追加 |

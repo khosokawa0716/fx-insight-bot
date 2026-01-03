@@ -195,40 +195,35 @@ fx-insight-bot/
 
 ## 🎯 次のステップ: Phase 2（ニュース収集機能）
 
-### 実装予定
+**Note**: 2026-01-03にGemini Grounding機能の検証を完了し、RSSベースのアプローチ(パターンB)から
+Gemini Grounding with Google Search(パターンA)に方針変更しました。
+詳細は [2026-01-03_gemini_grounding_validation.md](2026-01-03_gemini_grounding_validation.md) を参照してください。
 
-#### 1. RSS取得機能（1-2時間）
-- [x] `src/services/news_collector.py` 作成
-- [x] Bloomberg、Reuters、Yahoo!ファイナンスのRSSフィード取得
-- [x] feedparserを使用したRSSパース
-- [x] 重複チェック機能
-- [x] 包括的なテストコード作成（17テストケース、全てパス）
-- [x] 実際のRSSフィード取得の動作確認完了
+### 実装予定（Gemini Groundingベース）
 
-#### 2. Firestoreへの保存機能（1時間）
-- [ ] `news_events` コレクションへの保存
-- [ ] 基本的なエラーハンドリング
-- [ ] ログ出力
+#### 1. プロンプトテンプレート作成
+- [ ] センチメント分析基準の明確化
+- [ ] 影響度評価ロジックの標準化
 
-#### 3. 定期実行スクリプト作成（30分）
-- [ ] スタンドアロンスクリプトの作成
-- [ ] 手動実行での動作確認
-- [ ] Cloud Schedulerでの定期実行設定（後のフェーズ）
+#### 2. エラーハンドリング
+- [ ] JSON パースエラーへの対応
+- [ ] API タイムアウトへの対応
+- [ ] リトライロジックの実装
 
-### 準備事項
+#### 3. Firestore統合
+- [ ] 収集したニュースの保存
+- [ ] 重複チェック機能
 
-- [ ] RSSフィードのURL確認
-  - Bloomberg日本語版のRSS URL
-  - Reuters日本語版のRSS URL
-  - Yahoo!ファイナンスのRSS URL
-- [ ] 各ソースの利用規約確認
-- [ ] レート制限の確認
+#### 4. 定期実行
+- [ ] Cloud Scheduler + Cloud Functions による自動実行
+- [ ] 1日2回の定期実行設定
 
 ### 期待される成果
 
-- 実際のニュースを取得してFirestoreに保存できる
+- Gemini Groundingで最新のFXニュースを取得できる
+- 構造化されたJSON形式でニュース分析データを取得できる
 - `news_events` コレクションにデータが蓄積される
-- 重複したニュースは保存されない
+- 月額コスト約36円で運用できる
 
 ---
 

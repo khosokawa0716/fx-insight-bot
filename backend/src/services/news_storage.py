@@ -6,7 +6,7 @@ NewsAnalysisResultをFirestoreに保存し、重複チェックを行うサー�
 
 import hashlib
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Set
 
 from google.cloud import firestore
@@ -14,6 +14,9 @@ from google.cloud import firestore
 from src.config import settings, get_credentials_path
 from src.models.firestore import NewsEvent
 from src.services.news_analyzer import NewsAnalysisResult
+
+# 日本時間タイムゾーン（JST = UTC+9）
+JST = timezone(timedelta(hours=9))
 
 logger = logging.getLogger(__name__)
 
@@ -67,18 +70,18 @@ class NewsStorage:
         Args:
             title: ニュースタイトル
             source_url: ソースURL
-            analyzed_at: 分析日時
+            analyzed_at: 分析日時（未使用、後方互換性のため保持）
 
         Returns:
             一意なニュースID
         """
-        # タイトル + URL + 分析日時でハッシュ生成
-        content = f"{title}_{source_url}_{analyzed_at.isoformat()}"
-        hash_digest = hashlib.sha256(content.encode()).hexdigest()[:12]
+        # タイトル + URLでハッシュ生成
+        # 同じニュースが複数回収集されても、日付をまたいでも同じIDを生成する
+        content = f"{title}_{source_url}"
+        hash_digest = hashlib.sha256(content.encode()).hexdigest()[:16]
 
-        # フォーマット: news_YYYYMMDD_HASH
-        date_str = analyzed_at.strftime("%Y%m%d")
-        return f"news_{date_str}_{hash_digest}"
+        # フォーマット: news_[16-char-hash]
+        return f"news_{hash_digest}"
 
     def _check_duplicate(self, news_id: str) -> bool:
         """
@@ -113,10 +116,10 @@ class NewsStorage:
         Returns:
             NewsEventオブジェクト
         """
-        # published_atは不明なので、analyzed_atを使用
+        # published_atは不明なので、analyzed_atを日本時間に変換して使用
         # 実際のニュースソースから取得できる場合は、そちらを優先すべき
-        published_at = result.analyzed_at
-        collected_at = result.analyzed_at
+        published_at = result.analyzed_at.astimezone(JST)
+        collected_at = result.analyzed_at.astimezone(JST)
 
         return NewsEvent(
             news_id=news_id,

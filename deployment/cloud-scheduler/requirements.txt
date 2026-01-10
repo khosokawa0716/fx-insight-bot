@@ -1,0 +1,21 @@
+# Cloud Functions Dependencies for FX News Collection
+# Cloud Functionsにデプロイする際に必要な依存パッケージ
+
+# Google Cloud Platform
+google-cloud-firestore==2.14.0
+google-cloud-aiplatform==1.39.0
+
+# Web & HTTP
+requests==2.31.0
+
+# Data Validation
+pydantic==2.5.3
+
+# Date & Time
+python-dateutil==2.8.2
+pytz==2023.3
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# Note: Flask/functions-framework は Cloud Functions 環境で自動的に提供されます

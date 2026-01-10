@@ -137,7 +137,7 @@ EUR/JPY への影響度:
         self,
         project_id: Optional[str] = None,
         location: str = "asia-northeast1",
-        model: str = "gemini-2.5-flash-lite",
+        model: str = "gemini-2.5-flash",
         max_retries: int = 3,
         retry_delay: float = 2.0,
         timeout: int = 120,

@@ -7,6 +7,7 @@ Gemini Grounding with Google Searchを使用してFX関連ニュースを収集�
 import json
 import logging
 import re
+import time
 from typing import Dict, List, Optional
 from datetime import datetime, timezone
 
@@ -16,10 +17,35 @@ from google.genai.types import (
     GoogleSearch,
     Tool,
 )
+from google.api_core import exceptions as google_exceptions
 
 from src.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+class NewsAnalyzerError(Exception):
+    """NewsAnalyzer基底例外クラス"""
+
+    pass
+
+
+class APIError(NewsAnalyzerError):
+    """Gemini API呼び出しエラー"""
+
+    pass
+
+
+class JSONParseError(NewsAnalyzerError):
+    """JSON解析エラー"""
+
+    pass
+
+
+class ValidationError(NewsAnalyzerError):
+    """データ検証エラー"""
+
+    pass
 
 
 class NewsAnalysisResult:
@@ -112,6 +138,9 @@ EUR/JPY への影響度:
         project_id: Optional[str] = None,
         location: str = "asia-northeast1",
         model: str = "gemini-2.5-flash-lite",
+        max_retries: int = 3,
+        retry_delay: float = 2.0,
+        timeout: int = 120,
     ):
         """
         初期化
@@ -120,10 +149,16 @@ EUR/JPY への影響度:
             project_id: GCPプロジェクトID（省略時は設定から取得）
             location: リージョン
             model: 使用するGeminiモデル
+            max_retries: 最大リトライ回数
+            retry_delay: リトライ間隔（秒）
+            timeout: APIタイムアウト（秒）
         """
-        self.project_id = project_id or settings.GCP_PROJECT_ID
+        self.project_id = project_id or settings.gcp_project_id
         self.location = location
         self.model = model
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
+        self.timeout = timeout
 
         # Gemini クライアント初期化
         self.client = genai.Client(
@@ -134,7 +169,8 @@ EUR/JPY への影響度:
 
         logger.info(
             f"NewsAnalyzer initialized (project={self.project_id}, "
-            f"location={self.location}, model={self.model})"
+            f"location={self.location}, model={self.model}, "
+            f"max_retries={self.max_retries}, timeout={self.timeout}s)"
         )
 
     def _build_prompt(self, query: str, news_count: int = 5) -> str:
@@ -203,11 +239,190 @@ USD/JPYとEUR/JPYの為替レートへの影響を分析してください。
         cleaned = re.sub(r"```\s*", "", cleaned)
         return cleaned.strip()
 
+    def _call_gemini_api(self, prompt: str) -> str:
+        """
+        Gemini APIを呼び出し（リトライ付き）
+
+        Args:
+            prompt: プロンプト
+
+        Returns:
+            APIレスポンステキスト
+
+        Raises:
+            APIError: API呼び出しに失敗した場合
+        """
+        last_error = None
+
+        for attempt in range(self.max_retries):
+            try:
+                logger.debug(
+                    f"Calling Gemini API (attempt {attempt + 1}/{self.max_retries})..."
+                )
+
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    contents=prompt,
+                    config=GenerateContentConfig(
+                        tools=[Tool(google_search=GoogleSearch())],
+                        temperature=0.2,
+                    ),
+                )
+
+                response_text = response.text
+                logger.debug(f"Received response: {len(response_text)} characters")
+                return response_text
+
+            except google_exceptions.DeadlineExceeded as e:
+                last_error = e
+                logger.warning(
+                    f"API timeout (attempt {attempt + 1}/{self.max_retries}): {e}"
+                )
+                if attempt < self.max_retries - 1:
+                    time.sleep(self.retry_delay * (attempt + 1))  # Exponential backoff
+                    continue
+                raise APIError(f"API timeout after {self.max_retries} attempts") from e
+
+            except google_exceptions.ResourceExhausted as e:
+                last_error = e
+                logger.warning(
+                    f"Rate limit exceeded (attempt {attempt + 1}/{self.max_retries}): {e}"
+                )
+                if attempt < self.max_retries - 1:
+                    time.sleep(self.retry_delay * (attempt + 1) * 2)  # Longer backoff
+                    continue
+                raise APIError(
+                    f"Rate limit exceeded after {self.max_retries} attempts"
+                ) from e
+
+            except google_exceptions.ServiceUnavailable as e:
+                last_error = e
+                logger.warning(
+                    f"Service unavailable (attempt {attempt + 1}/{self.max_retries}): {e}"
+                )
+                if attempt < self.max_retries - 1:
+                    time.sleep(self.retry_delay * (attempt + 1))
+                    continue
+                raise APIError(
+                    f"Service unavailable after {self.max_retries} attempts"
+                ) from e
+
+            except Exception as e:
+                last_error = e
+                logger.error(f"Unexpected API error: {e}")
+                raise APIError(f"API call failed: {e}") from e
+
+        # Should not reach here
+        raise APIError(f"API call failed after {self.max_retries} attempts") from last_error
+
+    def _parse_json_response(self, response_text: str) -> List[Dict]:
+        """
+        JSONレスポンスを解析
+
+        Args:
+            response_text: Geminiのレスポンステキスト
+
+        Returns:
+            解析されたニュースリスト
+
+        Raises:
+            JSONParseError: JSON解析に失敗した場合
+        """
+        # JSONクリーニング
+        cleaned_text = self._clean_json_response(response_text)
+
+        try:
+            news_list = json.loads(cleaned_text)
+
+            # リストであることを確認
+            if not isinstance(news_list, list):
+                raise JSONParseError(
+                    f"Expected JSON array, got {type(news_list).__name__}"
+                )
+
+            logger.debug(f"Successfully parsed {len(news_list)} news items from JSON")
+            return news_list
+
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parse error: {e}")
+            logger.error(f"Cleaned response text (first 500 chars): {cleaned_text[:500]}")
+            raise JSONParseError(f"Failed to parse JSON response: {e}") from e
+
+    def _validate_and_convert_news_item(
+        self, news_item: Dict, analyzed_at: datetime
+    ) -> Optional[NewsAnalysisResult]:
+        """
+        ニュースアイテムを検証してNewsAnalysisResultに変換
+
+        Args:
+            news_item: ニュースアイテムの辞書
+            analyzed_at: 分析日時
+
+        Returns:
+            NewsAnalysisResult またはNone（検証失敗時）
+        """
+        required_fields = [
+            "title",
+            "summary",
+            "sentiment",
+            "impact",
+            "time_horizon",
+            "source_url",
+            "rationale",
+        ]
+
+        # 必須フィールドチェック
+        missing_fields = [field for field in required_fields if field not in news_item]
+        if missing_fields:
+            logger.warning(f"Missing required fields: {missing_fields}")
+            return None
+
+        # impactの構造チェック
+        if not isinstance(news_item["impact"], dict):
+            logger.warning("'impact' field is not a dictionary")
+            return None
+
+        if "usd_jpy" not in news_item["impact"] or "eur_jpy" not in news_item["impact"]:
+            logger.warning("Missing usd_jpy or eur_jpy in impact field")
+            return None
+
+        try:
+            result = NewsAnalysisResult(
+                title=news_item["title"],
+                summary=news_item["summary"],
+                sentiment=int(news_item["sentiment"]),
+                impact_usd_jpy=int(news_item["impact"]["usd_jpy"]),
+                impact_eur_jpy=int(news_item["impact"]["eur_jpy"]),
+                time_horizon=news_item["time_horizon"],
+                source_url=news_item["source_url"],
+                rationale=news_item["rationale"],
+                analyzed_at=analyzed_at,
+            )
+
+            # 値の範囲チェック
+            if not (-2 <= result.sentiment <= 2):
+                logger.warning(f"Sentiment out of range: {result.sentiment}")
+                return None
+
+            if not (1 <= result.impact_usd_jpy <= 5):
+                logger.warning(f"USD/JPY impact out of range: {result.impact_usd_jpy}")
+                return None
+
+            if not (1 <= result.impact_eur_jpy <= 5):
+                logger.warning(f"EUR/JPY impact out of range: {result.impact_eur_jpy}")
+                return None
+
+            return result
+
+        except (TypeError, ValueError) as e:
+            logger.warning(f"Failed to convert news item: {e}")
+            return None
+
     def analyze_news(
         self, query: str = "USD/JPY EUR/JPY 為替 最新ニュース", news_count: int = 5
     ) -> List[NewsAnalysisResult]:
         """
-        ニュースを収集・分析
+        ニュースを収集・分析（エラーハンドリング・リトライ付き）
 
         Args:
             query: 検索クエリ
@@ -217,7 +432,9 @@ USD/JPYとEUR/JPYの為替レートへの影響を分析してください。
             分析結果のリスト
 
         Raises:
-            Exception: API呼び出しまたはJSON解析に失敗した場合
+            APIError: API呼び出しに失敗した場合
+            JSONParseError: JSON解析に失敗した場合
+            ValidationError: データ検証に失敗した場合
         """
         logger.info(f"Starting news analysis (query='{query}', count={news_count})")
 
@@ -225,60 +442,38 @@ USD/JPYとEUR/JPYの為替レートへの影響を分析してください。
             # プロンプト構築
             prompt = self._build_prompt(query, news_count)
 
-            # Gemini API呼び出し
-            logger.debug("Calling Gemini API with Grounding...")
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=prompt,
-                config=GenerateContentConfig(
-                    tools=[Tool(google_search=GoogleSearch())],
-                    temperature=0.2,
-                ),
-            )
-
-            # レスポンステキスト取得
-            response_text = response.text
-            logger.debug(f"Received response: {len(response_text)} characters")
-
-            # JSONクリーニング
-            cleaned_text = self._clean_json_response(response_text)
+            # Gemini API呼び出し（リトライ付き）
+            response_text = self._call_gemini_api(prompt)
 
             # JSON解析
-            try:
-                news_list = json.loads(cleaned_text)
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON parse error: {e}")
-                logger.error(f"Response text: {cleaned_text[:500]}")
-                raise
+            news_list = self._parse_json_response(response_text)
 
             # NewsAnalysisResultオブジェクトに変換
             results = []
             analyzed_at = datetime.now(timezone.utc)
 
-            for news_item in news_list:
-                try:
-                    result = NewsAnalysisResult(
-                        title=news_item["title"],
-                        summary=news_item["summary"],
-                        sentiment=news_item["sentiment"],
-                        impact_usd_jpy=news_item["impact"]["usd_jpy"],
-                        impact_eur_jpy=news_item["impact"]["eur_jpy"],
-                        time_horizon=news_item["time_horizon"],
-                        source_url=news_item["source_url"],
-                        rationale=news_item["rationale"],
-                        analyzed_at=analyzed_at,
-                    )
+            for i, news_item in enumerate(news_list, 1):
+                result = self._validate_and_convert_news_item(news_item, analyzed_at)
+                if result:
                     results.append(result)
-                except KeyError as e:
-                    logger.warning(f"Missing field in news item: {e}")
-                    continue
+                else:
+                    logger.warning(f"Skipped news item {i} due to validation failure")
 
-            logger.info(f"Successfully analyzed {len(results)} news items")
+            if not results:
+                raise ValidationError("No valid news items were extracted from response")
+
+            logger.info(
+                f"Successfully analyzed {len(results)}/{len(news_list)} news items"
+            )
             return results
 
-        except Exception as e:
-            logger.error(f"Failed to analyze news: {e}")
+        except (APIError, JSONParseError, ValidationError):
+            # すでにログ出力済みなので再スロー
             raise
+
+        except Exception as e:
+            logger.error(f"Unexpected error during news analysis: {e}")
+            raise NewsAnalyzerError(f"News analysis failed: {e}") from e
 
 
 def analyze_fx_news(news_count: int = 5) -> List[NewsAnalysisResult]:

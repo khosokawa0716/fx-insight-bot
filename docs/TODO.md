@@ -22,7 +22,13 @@
 ### ✅ ニュースソース
 - **採用ソース**: Gemini Grounding with Google Search
 - **収集方法**: Grounding機能によるリアルタイム検索
-- **頻度**: 2回/日
+- **頻度**: 1回/日（9:00 JST）
+
+### ✅ デプロイ戦略
+- **バックエンド**: Cloud Run（FastAPI全体をデプロイ）
+- **定期実行**: Cloud Scheduler → Cloud Run API エンドポイント
+- **フロントエンド**: Firebase Hosting（予定）
+- **理由**: シンプル、柔軟、無料枠が大きい
 
 ### ✅ X(Twitter)投稿の運用方針
 - **初期フェーズ**: 完全手動（ドラフトのみ生成）
@@ -86,9 +92,10 @@
 - [x] Firestoreへの保存機能
 - [x] 検索クエリの最適化
 - [x] エラーハンドリング・リトライロジック実装
-- [x] 定期実行スクリプト作成（Cloud Scheduler連携）
+- [x] FastAPIニュース収集エンドポイント実装
+- [x] Cloud Run デプロイ準備（Dockerfile, .dockerignore）
+- [x] Cloud Run デプロイ手順ドキュメント作成
 - [x] ローカルテスト実行成功
-- [x] デプロイ手順ドキュメント作成
 
 ### Phase 3: ルールエンジン実装
 - [ ] ルール定義の基本構造実装

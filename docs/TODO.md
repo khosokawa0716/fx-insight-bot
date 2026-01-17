@@ -130,11 +130,11 @@
   - ヘルスチェック表示
 - [x] バックエンドAPI連携確認（localhost:8000）
 
-#### Phase 5.2: 認証・ルーティング
-- [ ] Firebase Authentication セットアップ
-- [ ] Googleログイン実装
-- [ ] React Router v6 ルーティング設定
-- [ ] 認証ガード（ProtectedRoute）
+#### Phase 5.2: 認証・ルーティング ✅ 完了
+- [x] Firebase Authentication セットアップ
+- [x] Googleログイン実装
+- [x] React Router v6 ルーティング設定
+- [x] 認証ガード（ProtectedRoute）
 
 #### Phase 5.3: ダッシュボード拡張
 - [ ] shadcn/ui コンポーネント導入

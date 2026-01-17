@@ -8,12 +8,18 @@
 - TypeScript 5.9
 - Vite 7
 - Tailwind CSS 4
+- Firebase Authentication
+- React Router v6
 
 ## セットアップ
 
 ```bash
 # 依存関係のインストール
 npm install
+
+# 環境変数の設定
+cp .env.example .env.local
+# .env.local にFirebaseの設定値を記入
 
 # 開発サーバー起動（バックエンドが localhost:8000 で起動している必要あり）
 npm run dev
@@ -23,6 +29,19 @@ npm run build
 
 # プレビュー
 npm run preview
+```
+
+## 環境変数
+
+Firebase Consoleから取得した値を `.env.local` に設定:
+
+```
+VITE_FIREBASE_API_KEY=xxx
+VITE_FIREBASE_AUTH_DOMAIN=xxx.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=xxx
+VITE_FIREBASE_STORAGE_BUCKET=xxx.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=xxx
+VITE_FIREBASE_APP_ID=xxx
 ```
 
 ## 開発環境の立ち上げ
@@ -50,11 +69,13 @@ npm run dev
 frontend/
 ├── src/
 │   ├── api/          # API呼び出し関数
-│   ├── components/   # UIコンポーネント
+│   ├── components/   # UIコンポーネント（ProtectedRoute等）
+│   ├── contexts/     # Reactコンテキスト（AuthContext）
 │   ├── hooks/        # カスタムフック
-│   ├── lib/          # ユーティリティ・クライアント
+│   ├── lib/          # ユーティリティ・クライアント（firebase, format）
+│   ├── pages/        # ページコンポーネント
 │   ├── types/        # 型定義
-│   ├── App.tsx       # メインコンポーネント
+│   ├── App.tsx       # ルーティング設定
 │   ├── main.tsx      # エントリポイント
 │   └── index.css     # グローバルスタイル
 ├── index.html
@@ -71,7 +92,6 @@ frontend/
 
 ## 今後の予定
 
-- Phase 5.2: Firebase Authentication（Googleログイン）
 - Phase 5.3: shadcn/ui コンポーネント導入、React Query
 - Phase 5.4: 追加画面（ニュース、シグナル履歴）
 - Phase 5.5: ダークモード、Firebase Hosting デプロイ

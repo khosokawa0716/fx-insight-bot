@@ -105,7 +105,7 @@
 - [x] Firestoreシグナル保存機能
 - [x] テストスクリプト作成・実行成功
 
-### Phase 4: 自動売買機能 🚧 進行中
+### Phase 4: 自動売買機能 ✅ 完了
 - [x] GMOコイン プライベートAPI認証実装
 - [x] 注文発注・キャンセル機能（place_order, cancel_order）
 - [x] ポジション照会・決済機能（get_positions, close_position）
@@ -115,12 +115,44 @@
 - [x] IFDOCO/IFD注文実装
 - [x] GMOコインAPIキー取得
 - [x] 実APIでの接続テスト（4/4成功）
-- [ ] FastAPIエンドポイント追加
+- [x] FastAPIエンドポイント追加
 
-### Phase 5: フロントエンド構築
-- [ ] React + TypeScript プロジェクト作成
-- [ ] ダッシュボードUI実装
-- [ ] API連携実装
+### Phase 5: フロントエンド構築（表示専用ダッシュボード）
+
+**設計ドキュメント**: [FRONTEND_SPEC.md](design/FRONTEND_SPEC.md)
+
+#### Phase 5.1: 環境構築・最小構成 ✅ 完了
+- [x] Vite + React + TypeScript プロジェクト作成
+- [x] Tailwind CSS セットアップ
+- [x] **シンプルな1ページダッシュボード作成**
+  - 口座残高表示（APIから取得）
+  - ポジション一覧表示
+  - ヘルスチェック表示
+- [x] バックエンドAPI連携確認（localhost:8000）
+
+#### Phase 5.2: 認証・ルーティング
+- [ ] Firebase Authentication セットアップ
+- [ ] Googleログイン実装
+- [ ] React Router v6 ルーティング設定
+- [ ] 認証ガード（ProtectedRoute）
+
+#### Phase 5.3: ダッシュボード拡張
+- [ ] shadcn/ui コンポーネント導入
+- [ ] React Query（TanStack Query）導入
+- [ ] 口座サマリーカード
+- [ ] リスク状況表示
+- [ ] 自動更新機能（ポーリング）
+
+#### Phase 5.4: 追加画面
+- [ ] ポジション詳細画面
+- [ ] ニュース一覧画面（Firestore連携）
+- [ ] シグナル履歴画面
+- [ ] 設定画面（表示設定のみ）
+
+#### Phase 5.5: 仕上げ
+- [ ] ダークモード対応
+- [ ] エラーハンドリング・ローディング表示
+- [ ] Firebase Hosting デプロイ
 
 ### Phase 6: BigQuery連携
 - [ ] Firestore → BigQuery エクスポート設定
@@ -154,7 +186,8 @@
 
 | 日付 | 変更内容 |
 |------|---------|
-| 2026-01-17 | Phase 4基本実装完了（プライベートAPI、TradeExecutor、RiskManager） |
+| 2026-01-17 | Phase 5設計完了、フロントエンド画面仕様書作成 |
+| 2026-01-17 | Phase 4完了（プライベートAPI、TradeExecutor、RiskManager、FastAPIエンドポイント） |
 | 2026-01-12 | Phase 3完了、ルールエンジン実装完了（テクニカル指標+ニュース分析統合） |
 | 2026-01-11 | Cloud Functions → Cloud Run 移行決定、デプロイ準備完了 |
 | 2026-01-10 | Phase 2完了、エラーハンドリング・リトライロジック実装完了 |

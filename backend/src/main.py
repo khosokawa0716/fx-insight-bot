@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from src.config import settings
 from src.utils.firestore_client import FirestoreClient
 from src.services.news_pipeline import run_news_collection
+from src.api.trade import router as trade_router
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(trade_router)
 
 
 @app.get("/")

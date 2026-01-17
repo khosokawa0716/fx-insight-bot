@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     environment: str = "development"
     log_level: str = "INFO"
 
+    # GMO Coin API (optional - for trading functionality)
+    gmo_api_key: str = ""
+    gmo_api_secret: str = ""
+
     class Config:
         env_file = ".env"
         case_sensitive = False

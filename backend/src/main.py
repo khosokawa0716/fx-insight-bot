@@ -3,15 +3,16 @@ FX Insight Bot - FastAPI Application Entry Point
 """
 
 import logging
-from typing import Optional
+from typing import Optional, List
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from src.config import settings
 from src.utils.firestore_client import FirestoreClient
 from src.services.news_pipeline import run_news_collection
+from src.services.news_storage import NewsStorage
 from src.api.trade import router as trade_router
 
 logger = logging.getLogger(__name__)
@@ -129,6 +130,76 @@ async def collect_news(request: NewsCollectionRequest = None):
         logger.error(f"News collection failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"News collection failed: {str(e)}"
+        )
+
+
+class NewsItem(BaseModel):
+    """ニュースアイテム（フロントエンド用）"""
+
+    news_id: str
+    title: str
+    summary: str
+    url: str
+    sentiment: int
+    impact_usdjpy: int
+    impact_eurjpy: int
+    time_horizon: str
+    signal: str
+    published_at: str
+    collected_at: str
+
+
+class NewsListResponse(BaseModel):
+    """ニュース一覧レスポンス"""
+
+    status: str
+    count: int
+    news: List[NewsItem]
+
+
+@app.get("/api/v1/news", response_model=NewsListResponse)
+async def get_news_list(limit: int = Query(default=20, ge=1, le=100)):
+    """
+    ニュース一覧を取得
+
+    Args:
+        limit: 取得件数（デフォルト: 20, 最大: 100）
+
+    Returns:
+        ニュース一覧
+    """
+    try:
+        storage = NewsStorage()
+        news_events = storage.get_recent_news(limit=limit)
+
+        news_items = []
+        for event in news_events:
+            news_items.append(
+                NewsItem(
+                    news_id=event.news_id,
+                    title=event.title,
+                    summary=event.summary_ai,
+                    url=event.url,
+                    sentiment=event.sentiment,
+                    impact_usdjpy=event.impact_usdjpy,
+                    impact_eurjpy=event.impact_eurjpy,
+                    time_horizon=event.time_horizon,
+                    signal=event.signal,
+                    published_at=event.published_at.isoformat(),
+                    collected_at=event.collected_at.isoformat(),
+                )
+            )
+
+        return NewsListResponse(
+            status="success",
+            count=len(news_items),
+            news=news_items,
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to get news list: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get news list: {str(e)}"
         )
 
 

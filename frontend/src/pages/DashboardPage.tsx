@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Wallet, Activity, TrendingUp, AlertTriangle, RefreshCw, ChevronRight } from 'lucide-react'
+import { Wallet, Activity, TrendingUp, AlertTriangle, RefreshCw, ChevronRight, Newspaper } from 'lucide-react'
 import { useAccount, usePositions, useHealth } from '../hooks'
 import { formatCurrency } from '../lib/format'
 import { useAuth } from '../contexts/AuthContext'
@@ -44,9 +44,24 @@ export function DashboardPage() {
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-900">
-            FX Insight Bot
-          </h1>
+          <div className="flex items-center gap-6">
+            <h1 className="text-xl font-bold text-gray-900">
+              FX Insight Bot
+            </h1>
+            <nav className="flex items-center gap-1">
+              <Link to="/">
+                <Button variant="ghost" size="sm" className="text-gray-600">
+                  Dashboard
+                </Button>
+              </Link>
+              <Link to="/news">
+                <Button variant="ghost" size="sm" className="text-gray-600">
+                  <Newspaper className="h-4 w-4 mr-1" />
+                  News
+                </Button>
+              </Link>
+            </nav>
+          </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600">{user?.email}</span>
             <Button variant="ghost" size="sm" onClick={signOut}>

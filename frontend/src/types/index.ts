@@ -59,3 +59,22 @@ export interface NewsListResponse {
   count: number
   news: NewsItem[]
 }
+
+// Signal types
+export interface SignalItem {
+  news_id: string
+  title: string
+  summary: string
+  signal: 'BUY_CANDIDATE' | 'SELL_CANDIDATE' | 'RISK_OFF'
+  sentiment: number
+  impact_usdjpy: number
+  impact_eurjpy: number
+  time_horizon: 'immediate' | 'short-term' | 'medium-term' | 'long-term'
+  published_at: string
+}
+
+export interface SignalListResponse {
+  status: 'success' | 'error'
+  count: number
+  signals: SignalItem[]
+}

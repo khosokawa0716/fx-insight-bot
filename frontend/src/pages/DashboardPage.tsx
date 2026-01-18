@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Wallet, Activity, TrendingUp, AlertTriangle, RefreshCw, ChevronRight, Newspaper } from 'lucide-react'
+import { Wallet, Activity, TrendingUp, AlertTriangle, RefreshCw, ChevronRight, Newspaper, Radio } from 'lucide-react'
 import { useAccount, usePositions, useHealth } from '../hooks'
 import { formatCurrency } from '../lib/format'
 import { useAuth } from '../contexts/AuthContext'
@@ -58,6 +58,12 @@ export function DashboardPage() {
                 <Button variant="ghost" size="sm" className="text-gray-600">
                   <Newspaper className="h-4 w-4 mr-1" />
                   News
+                </Button>
+              </Link>
+              <Link to="/signals">
+                <Button variant="ghost" size="sm" className="text-gray-600">
+                  <Radio className="h-4 w-4 mr-1" />
+                  Signals
                 </Button>
               </Link>
             </nav>

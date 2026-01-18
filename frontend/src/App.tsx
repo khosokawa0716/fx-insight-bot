@@ -5,6 +5,7 @@ import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { PositionDetailPage } from './pages/PositionDetailPage'
 import { NewsPage } from './pages/NewsPage'
+import { SignalsPage } from './pages/SignalsPage'
 
 function App() {
   return (
@@ -33,6 +34,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <NewsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/signals"
+            element={
+              <ProtectedRoute>
+                <SignalsPage />
               </ProtectedRoute>
             }
           />

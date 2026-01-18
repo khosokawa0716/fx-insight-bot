@@ -7,32 +7,32 @@ export function Header() {
   const { user, signOut } = useAuth()
 
   return (
-    <header className="bg-white shadow-sm border-b">
+    <header className="bg-white dark:bg-gray-900 shadow-sm border-b dark:border-gray-700">
       <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
         <div className="flex items-center gap-6">
-          <Link to="/" className="text-xl font-bold text-gray-900 hover:text-gray-700">
+          <Link to="/" className="text-xl font-bold text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300">
             FX Insight Bot
           </Link>
           <nav className="flex items-center gap-1">
             <Link to="/">
-              <Button variant="ghost" size="sm" className="text-gray-600">
+              <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-300">
                 Dashboard
               </Button>
             </Link>
             <Link to="/news">
-              <Button variant="ghost" size="sm" className="text-gray-600">
+              <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-300">
                 <Newspaper className="h-4 w-4 mr-1" />
                 News
               </Button>
             </Link>
             <Link to="/signals">
-              <Button variant="ghost" size="sm" className="text-gray-600">
+              <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-300">
                 <Radio className="h-4 w-4 mr-1" />
                 Signals
               </Button>
             </Link>
             <Link to="/settings">
-              <Button variant="ghost" size="sm" className="text-gray-600">
+              <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-300">
                 <Settings className="h-4 w-4 mr-1" />
                 Settings
               </Button>
@@ -40,7 +40,7 @@ export function Header() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">{user?.email}</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">{user?.email}</span>
           <Button variant="ghost" size="sm" onClick={signOut}>
             Sign out
           </Button>

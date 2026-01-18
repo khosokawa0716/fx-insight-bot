@@ -203,6 +203,77 @@ async def get_news_list(limit: int = Query(default=20, ge=1, le=100)):
         )
 
 
+class SignalItem(BaseModel):
+    """シグナルアイテム（フロントエンド用）"""
+
+    news_id: str
+    title: str
+    summary: str
+    signal: str
+    sentiment: int
+    impact_usdjpy: int
+    impact_eurjpy: int
+    time_horizon: str
+    published_at: str
+
+
+class SignalListResponse(BaseModel):
+    """シグナル一覧レスポンス"""
+
+    status: str
+    count: int
+    signals: List[SignalItem]
+
+
+@app.get("/api/v1/signals", response_model=SignalListResponse)
+async def get_signals_list(limit: int = Query(default=50, ge=1, le=100)):
+    """
+    シグナル履歴を取得（BUY_CANDIDATE, SELL_CANDIDATE, RISK_OFF のみ）
+
+    Args:
+        limit: 取得件数（デフォルト: 50, 最大: 100）
+
+    Returns:
+        シグナル一覧
+    """
+    try:
+        storage = NewsStorage()
+        # 最近のニュースを多めに取得してフィルタリング
+        news_events = storage.get_recent_news(limit=limit * 2)
+
+        signal_items = []
+        for event in news_events:
+            # IGNORE 以外のシグナルのみ
+            if event.signal in ("BUY_CANDIDATE", "SELL_CANDIDATE", "RISK_OFF"):
+                signal_items.append(
+                    SignalItem(
+                        news_id=event.news_id,
+                        title=event.title,
+                        summary=event.summary_ai,
+                        signal=event.signal,
+                        sentiment=event.sentiment,
+                        impact_usdjpy=event.impact_usdjpy,
+                        impact_eurjpy=event.impact_eurjpy,
+                        time_horizon=event.time_horizon,
+                        published_at=event.published_at.isoformat(),
+                    )
+                )
+                if len(signal_items) >= limit:
+                    break
+
+        return SignalListResponse(
+            status="success",
+            count=len(signal_items),
+            signals=signal_items,
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to get signals list: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get signals list: {str(e)}"
+        )
+
+
 if __name__ == "__main__":
     import uvicorn
 

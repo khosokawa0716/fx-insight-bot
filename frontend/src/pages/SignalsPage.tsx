@@ -1,9 +1,8 @@
-import { Link } from 'react-router-dom'
-import { ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, Clock, RefreshCw } from 'lucide-react'
+import { TrendingUp, TrendingDown, AlertTriangle, Clock, RefreshCw } from 'lucide-react'
 import { useSignals } from '../hooks'
-import { useAuth } from '../contexts/AuthContext'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Header, Footer } from '@/components/layout'
 import { cn } from '@/lib/utils'
 import type { SignalItem } from '../types'
 
@@ -146,7 +145,6 @@ function SignalCard({ signal }: { signal: SignalItem }) {
 
 export function SignalsPage() {
   const { data: signals = [], isLoading, error, refetch } = useSignals(50)
-  const { user, signOut } = useAuth()
 
   // Group signals by date
   const groupedSignals = signals.reduce((groups, signal) => {
@@ -160,27 +158,7 @@ export function SignalsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Link to="/">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <h1 className="text-xl font-bold text-gray-900">
-              Signal History
-            </h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">{user?.email}</span>
-            <Button variant="ghost" size="sm" onClick={signOut}>
-              Sign out
-            </Button>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-6">
@@ -238,12 +216,7 @@ export function SignalsPage() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t mt-auto bg-white">
-        <div className="max-w-7xl mx-auto px-4 py-4 text-center text-sm text-gray-500">
-          FX Insight Bot - Display Only Dashboard
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }

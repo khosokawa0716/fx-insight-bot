@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Wallet, Activity, TrendingUp, AlertTriangle, RefreshCw, ChevronRight, Newspaper, Radio, Settings } from 'lucide-react'
+import { Wallet, Activity, TrendingUp, AlertTriangle, RefreshCw, ChevronRight } from 'lucide-react'
 import { useAccount, usePositions, useHealth } from '../hooks'
 import { formatCurrency } from '../lib/format'
-import { useAuth } from '../contexts/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Header, Footer } from '@/components/layout'
 import { cn } from '@/lib/utils'
 
 export function DashboardPage() {
@@ -13,7 +13,6 @@ export function DashboardPage() {
   const { data: account, isLoading: accountLoading, error: accountError } = useAccount()
   const { data: positions = [], isLoading: positionsLoading, error: positionsError } = usePositions()
   const { data: health, isLoading: healthLoading, error: healthError } = useHealth()
-  const { user, signOut } = useAuth()
 
   const loading = accountLoading || positionsLoading || healthLoading
   const error = accountError || positionsError || healthError
@@ -41,47 +40,7 @@ export function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-6">
-            <h1 className="text-xl font-bold text-gray-900">
-              FX Insight Bot
-            </h1>
-            <nav className="flex items-center gap-1">
-              <Link to="/">
-                <Button variant="ghost" size="sm" className="text-gray-600">
-                  Dashboard
-                </Button>
-              </Link>
-              <Link to="/news">
-                <Button variant="ghost" size="sm" className="text-gray-600">
-                  <Newspaper className="h-4 w-4 mr-1" />
-                  News
-                </Button>
-              </Link>
-              <Link to="/signals">
-                <Button variant="ghost" size="sm" className="text-gray-600">
-                  <Radio className="h-4 w-4 mr-1" />
-                  Signals
-                </Button>
-              </Link>
-              <Link to="/settings">
-                <Button variant="ghost" size="sm" className="text-gray-600">
-                  <Settings className="h-4 w-4 mr-1" />
-                  Settings
-                </Button>
-              </Link>
-            </nav>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">{user?.email}</span>
-            <Button variant="ghost" size="sm" onClick={signOut}>
-              Sign out
-            </Button>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-6">
@@ -296,12 +255,7 @@ export function DashboardPage() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t mt-auto bg-white">
-        <div className="max-w-7xl mx-auto px-4 py-4 text-center text-sm text-gray-500">
-          FX Insight Bot - Display Only Dashboard
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }

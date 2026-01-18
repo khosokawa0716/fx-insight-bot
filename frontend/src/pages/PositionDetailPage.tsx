@@ -2,16 +2,15 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, TrendingUp, TrendingDown, Clock, DollarSign } from 'lucide-react'
 import { usePositions } from '../hooks'
 import { formatCurrency } from '../lib/format'
-import { useAuth } from '../contexts/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Header, Footer } from '@/components/layout'
 import { cn } from '@/lib/utils'
 
 export function PositionDetailPage() {
   const { positionId } = useParams<{ positionId: string }>()
   const navigate = useNavigate()
   const { data: positions = [], isLoading, error } = usePositions()
-  const { user, signOut } = useAuth()
 
   const position = positions.find(p => p.positionId === positionId)
 
@@ -53,25 +52,7 @@ export function PositionDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="text-xl font-bold text-gray-900">
-              Position Detail
-            </h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">{user?.email}</span>
-            <Button variant="ghost" size="sm" onClick={signOut}>
-              Sign out
-            </Button>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
@@ -211,12 +192,7 @@ export function PositionDetailPage() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t mt-auto bg-white">
-        <div className="max-w-7xl mx-auto px-4 py-4 text-center text-sm text-gray-500">
-          FX Insight Bot - Display Only Dashboard
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }

@@ -1,8 +1,8 @@
-import { Link } from 'react-router-dom'
-import { ArrowLeft, Bell, Clock, Palette, Shield } from 'lucide-react'
+import { Bell, Clock, Palette, Shield } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Header, Footer } from '@/components/layout'
 import { cn } from '@/lib/utils'
 
 interface SettingItemProps {
@@ -68,27 +68,7 @@ export function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Link to="/">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <h1 className="text-xl font-bold text-gray-900">
-              Settings
-            </h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">{user?.email}</span>
-            <Button variant="ghost" size="sm" onClick={signOut}>
-              Sign out
-            </Button>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Main Content */}
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
@@ -192,12 +172,7 @@ export function SettingsPage() {
         </Card>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t mt-auto bg-white">
-        <div className="max-w-7xl mx-auto px-4 py-4 text-center text-sm text-gray-500">
-          FX Insight Bot - Display Only Dashboard
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }

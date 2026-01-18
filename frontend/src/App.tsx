@@ -6,6 +6,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { PositionDetailPage } from './pages/PositionDetailPage'
 import { NewsPage } from './pages/NewsPage'
 import { SignalsPage } from './pages/SignalsPage'
+import { SettingsPage } from './pages/SettingsPage'
 
 function App() {
   return (
@@ -42,6 +43,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <SignalsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
               </ProtectedRoute>
             }
           />

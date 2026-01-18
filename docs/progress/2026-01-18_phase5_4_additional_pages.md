@@ -2,7 +2,7 @@
 
 **日付**: 2026-01-18
 **フェーズ**: Phase 5.4 追加画面
-**ステータス**: 🔄 進行中
+**ステータス**: ✅ 完了
 
 ---
 
@@ -52,6 +52,19 @@
 - シグナルアイコン（TrendingUp/TrendingDown/AlertTriangle）
 - センチメント、インパクトバー、タイムホライズン
 
+### 4. 設定画面 (`/settings`)
+
+| 項目 | 内容 |
+|------|------|
+| ファイル | `frontend/src/pages/SettingsPage.tsx` |
+| 機能 | 表示設定、通知設定（Coming soon）、アカウント情報 |
+
+**表示項目**:
+- Display Settings: Auto Refresh, Dark Mode（Coming soon）
+- Notifications: Push Notifications（Coming soon）
+- Account: Email表示、Sign Outボタン
+- About: Version, Environment
+
 ---
 
 ## ファイル構成
@@ -61,7 +74,8 @@ frontend/src/
 ├── pages/
 │   ├── PositionDetailPage.tsx  # ポジション詳細
 │   ├── NewsPage.tsx            # ニュース一覧
-│   └── SignalsPage.tsx         # シグナル履歴
+│   ├── SignalsPage.tsx         # シグナル履歴
+│   └── SettingsPage.tsx        # 設定
 ├── api/
 │   ├── news.ts                 # fetchNews
 │   └── signals.ts              # fetchSignals
@@ -86,6 +100,7 @@ backend/src/
 | `/position/:positionId` | PositionDetailPage | 必要 |
 | `/news` | NewsPage | 必要 |
 | `/signals` | SignalsPage | 必要 |
+| `/settings` | SettingsPage | 必要 |
 
 ---
 
@@ -94,12 +109,7 @@ backend/src/
 ダッシュボードヘッダーに追加:
 - **News** - ニュース一覧へ（Newspaper アイコン）
 - **Signals** - シグナル履歴へ（Radio アイコン）
-
----
-
-## 残タスク
-
-- [ ] 設定画面（表示設定のみ）
+- **Settings** - 設定画面へ（Settings アイコン）
 
 ---
 
@@ -109,7 +119,8 @@ backend/src/
 |---------|------|
 | (前回) | ポジション詳細画面 |
 | (前回) | ニュース一覧画面 |
-| (今回) | シグナル履歴画面 |
+| `0912910` | シグナル履歴画面 |
+| (今回) | 設定画面 |
 
 ---
 

@@ -1,5 +1,6 @@
+import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Wallet, Activity, TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react'
+import { Wallet, Activity, TrendingUp, AlertTriangle, RefreshCw, ChevronRight } from 'lucide-react'
 import { useAccount, usePositions, useHealth } from '../hooks'
 import { formatCurrency } from '../lib/format'
 import { useAuth } from '../contexts/AuthContext'
@@ -212,13 +213,16 @@ export function DashboardPage() {
                           <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                             P/L
                           </th>
+                          <th className="px-4 py-3 w-8"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {positions.map((position) => (
-                          <tr key={position.positionId} className="hover:bg-gray-50">
+                          <tr key={position.positionId} className="hover:bg-gray-50 cursor-pointer group">
                             <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                              {position.symbol}
+                              <Link to={`/position/${position.positionId}`} className="hover:text-blue-600">
+                                {position.symbol}
+                              </Link>
                             </td>
                             <td className="px-4 py-3 text-sm">
                               <span
@@ -247,6 +251,11 @@ export function DashboardPage() {
                               )}
                             >
                               {formatCurrency(position.lossGain)}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-400">
+                              <Link to={`/position/${position.positionId}`}>
+                                <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </Link>
                             </td>
                           </tr>
                         ))}

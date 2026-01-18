@@ -137,11 +137,11 @@
 - [x] 認証ガード（ProtectedRoute）
 
 #### Phase 5.3: ダッシュボード拡張
-- [ ] shadcn/ui コンポーネント導入
-- [ ] React Query（TanStack Query）導入
-- [ ] 口座サマリーカード
-- [ ] リスク状況表示
-- [ ] 自動更新機能（ポーリング）
+- [x] shadcn/ui コンポーネント導入
+- [x] React Query（TanStack Query）導入
+- [x] 口座サマリーカード
+- [x] リスク状況表示
+- [x] 自動更新機能（ポーリング）
 
 #### Phase 5.4: 追加画面
 - [ ] ポジション詳細画面

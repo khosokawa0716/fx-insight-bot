@@ -1,10 +1,23 @@
-import { useDashboardData } from '../hooks'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAccount, usePositions, useHealth } from '../hooks'
 import { formatCurrency } from '../lib/format'
 import { useAuth } from '../contexts/AuthContext'
 
 export function DashboardPage() {
-  const { account, positions, health, loading, error, refetch } = useDashboardData()
+  const queryClient = useQueryClient()
+  const { data: account, isLoading: accountLoading, error: accountError } = useAccount()
+  const { data: positions = [], isLoading: positionsLoading, error: positionsError } = usePositions()
+  const { data: health, isLoading: healthLoading, error: healthError } = useHealth()
   const { user, signOut } = useAuth()
+
+  const loading = accountLoading || positionsLoading || healthLoading
+  const error = accountError || positionsError || healthError
+
+  const refetch = () => {
+    queryClient.invalidateQueries({ queryKey: ['account'] })
+    queryClient.invalidateQueries({ queryKey: ['positions'] })
+    queryClient.invalidateQueries({ queryKey: ['health'] })
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -30,7 +43,7 @@ export function DashboardPage() {
       <main className="max-w-7xl mx-auto px-4 py-8">
         {error && (
           <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-            {error}
+            {error.message}
             <button
               onClick={refetch}
               className="ml-4 text-sm underline hover:no-underline"

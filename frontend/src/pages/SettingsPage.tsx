@@ -1,5 +1,6 @@
 import { Bell, Clock, Palette, Shield } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../contexts/ThemeContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Header, Footer } from '@/components/layout'
@@ -14,12 +15,12 @@ interface SettingItemProps {
 
 function SettingItem({ icon, title, description, children }: SettingItemProps) {
   return (
-    <div className="flex items-start justify-between py-4 border-b last:border-b-0">
+    <div className="flex items-start justify-between py-4 border-b dark:border-gray-700 last:border-b-0">
       <div className="flex items-start gap-3">
-        <div className="text-gray-400 mt-0.5">{icon}</div>
+        <div className="text-gray-400 dark:text-gray-500 mt-0.5">{icon}</div>
         <div>
-          <h3 className="font-medium text-gray-900">{title}</h3>
-          <p className="text-sm text-gray-500 mt-0.5">{description}</p>
+          <h3 className="font-medium text-gray-900 dark:text-gray-100">{title}</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{description}</p>
         </div>
       </div>
       <div className="flex-shrink-0">{children}</div>
@@ -41,7 +42,7 @@ function ToggleSwitch({ enabled, onChange, disabled = false }: ToggleSwitchProps
       disabled={disabled}
       className={cn(
         "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-        enabled ? 'bg-blue-600' : 'bg-gray-200',
+        enabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700',
         disabled && 'opacity-50 cursor-not-allowed'
       )}
     >
@@ -57,17 +58,17 @@ function ToggleSwitch({ enabled, onChange, disabled = false }: ToggleSwitchProps
 
 export function SettingsPage() {
   const { user, signOut } = useAuth()
+  const { theme, toggleTheme } = useTheme()
 
   // 設定値（現在は表示のみ、将来的にはlocalStorageやFirestoreで永続化）
   const settings = {
     autoRefresh: true,
     refreshInterval: 30,
     notifications: false,
-    darkMode: false,
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header />
 
       {/* Main Content */}
@@ -93,12 +94,11 @@ export function SettingsPage() {
             <SettingItem
               icon={<Palette className="h-5 w-5" />}
               title="Dark Mode"
-              description="Use dark color theme (Coming soon)"
+              description="Use dark color theme"
             >
               <ToggleSwitch
-                enabled={settings.darkMode}
-                onChange={() => {}}
-                disabled
+                enabled={theme === 'dark'}
+                onChange={toggleTheme}
               />
             </SettingItem>
           </CardContent>
@@ -135,13 +135,13 @@ export function SettingsPage() {
               title="Email"
               description="Your login email address"
             >
-              <span className="text-sm text-gray-600">{user?.email}</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">{user?.email}</span>
             </SettingItem>
 
             <div className="pt-4">
               <Button
                 variant="outline"
-                className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                className="w-full text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
                 onClick={signOut}
               >
                 Sign Out
@@ -158,12 +158,12 @@ export function SettingsPage() {
           <CardContent className="pt-0">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">Version</span>
-                <span className="text-gray-900">0.1.0</span>
+                <span className="text-gray-500 dark:text-gray-400">Version</span>
+                <span className="text-gray-900 dark:text-gray-100">0.1.0</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Environment</span>
-                <span className="text-gray-900">
+                <span className="text-gray-500 dark:text-gray-400">Environment</span>
+                <span className="text-gray-900 dark:text-gray-100">
                   {import.meta.env.MODE === 'production' ? 'Production' : 'Development'}
                 </span>
               </div>

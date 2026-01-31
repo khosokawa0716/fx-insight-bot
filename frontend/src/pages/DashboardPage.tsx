@@ -30,22 +30,22 @@ export function DashboardPage() {
 
   // リスクレベルを判定
   const getRiskLevel = (ratio: number | null) => {
-    if (ratio === null) return { level: 'unknown', color: 'text-gray-500', bgColor: 'bg-gray-100' }
-    if (ratio >= 300) return { level: 'Safe', color: 'text-green-600', bgColor: 'bg-green-100' }
-    if (ratio >= 150) return { level: 'Normal', color: 'text-yellow-600', bgColor: 'bg-yellow-100' }
-    return { level: 'Warning', color: 'text-red-600', bgColor: 'bg-red-100' }
+    if (ratio === null) return { level: 'unknown', color: 'text-gray-500 dark:text-gray-400', bgColor: 'bg-gray-100 dark:bg-gray-800' }
+    if (ratio >= 300) return { level: 'Safe', color: 'text-green-600 dark:text-green-400', bgColor: 'bg-green-100 dark:bg-green-900' }
+    if (ratio >= 150) return { level: 'Normal', color: 'text-yellow-600 dark:text-yellow-400', bgColor: 'bg-yellow-100 dark:bg-yellow-900' }
+    return { level: 'Warning', color: 'text-red-600 dark:text-red-400', bgColor: 'bg-red-100 dark:bg-red-900' }
   }
 
   const riskStatus = getRiskLevel(marginRatio)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-6">
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center justify-between">
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg flex items-center justify-between">
             <span>{error.message}</span>
             <Button variant="outline" size="sm" onClick={refetch}>
               Retry
@@ -56,7 +56,7 @@ export function DashboardPage() {
         {loading ? (
           <div className="text-center py-12">
             <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-500" />
-            <p className="mt-2 text-gray-600">Loading...</p>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">Loading...</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -65,16 +65,16 @@ export function DashboardPage() {
               {/* Balance Card */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500">
+                  <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-400">
                     Total Balance
                   </CardTitle>
-                  <Wallet className="h-4 w-4 text-gray-400" />
+                  <Wallet className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
                     {formatCurrency(account?.balance)}
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Available: {formatCurrency(account?.availableAmount)}
                   </p>
                 </CardContent>
@@ -83,16 +83,16 @@ export function DashboardPage() {
               {/* Equity Card */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500">
+                  <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-400">
                     Equity
                   </CardTitle>
-                  <TrendingUp className="h-4 w-4 text-gray-400" />
+                  <TrendingUp className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
                     {formatCurrency(account?.equity)}
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Margin: {formatCurrency(account?.margin)}
                   </p>
                 </CardContent>
@@ -101,21 +101,21 @@ export function DashboardPage() {
               {/* P/L Card */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500">
+                  <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-400">
                     Unrealized P/L
                   </CardTitle>
-                  <Activity className="h-4 w-4 text-gray-400" />
+                  <Activity className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                 </CardHeader>
                 <CardContent>
                   <div className={cn(
                     "text-2xl font-bold",
                     account?.profitLoss && parseFloat(account.profitLoss) >= 0
-                      ? 'text-green-600'
-                      : 'text-red-600'
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-red-600 dark:text-red-400'
                   )}>
                     {formatCurrency(account?.profitLoss)}
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     {positions.length} position(s)
                   </p>
                 </CardContent>
@@ -124,7 +124,7 @@ export function DashboardPage() {
               {/* Risk Status Card */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500">
+                  <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-400">
                     Margin Ratio
                   </CardTitle>
                   <AlertTriangle className={cn("h-4 w-4", riskStatus.color)} />
@@ -152,7 +152,7 @@ export function DashboardPage() {
                         health?.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
                       )}
                     />
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
                       {health?.status === 'healthy' ? 'Online' : 'Offline'}
                     </span>
                   </div>
@@ -160,7 +160,7 @@ export function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Auto-refresh every 30 seconds</span>
+                  <span className="text-gray-500 dark:text-gray-400">Auto-refresh every 30 seconds</span>
                   <Button variant="outline" size="sm" onClick={refetch} disabled={loading}>
                     <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
                     Refresh Now
@@ -176,37 +176,37 @@ export function DashboardPage() {
               </CardHeader>
               <CardContent>
                 {positions.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     No open positions
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full">
                       <thead>
-                        <tr className="border-b">
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        <tr className="border-b dark:border-gray-700">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                             Symbol
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                             Side
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                             Size
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                             Entry Price
                           </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                             P/L
                           </th>
                           <th className="px-4 py-3 w-8"></th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100">
+                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                         {positions.map((position) => (
-                          <tr key={position.positionId} className="hover:bg-gray-50 cursor-pointer group">
-                            <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                              <Link to={`/position/${position.positionId}`} className="hover:text-blue-600">
+                          <tr key={position.positionId} className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer group">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+                              <Link to={`/position/${position.positionId}`} className="hover:text-blue-600 dark:hover:text-blue-400">
                                 {position.symbol}
                               </Link>
                             </td>
@@ -215,30 +215,30 @@ export function DashboardPage() {
                                 className={cn(
                                   "px-2 py-1 rounded text-xs font-medium",
                                   position.side === 'BUY'
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-red-100 text-red-800'
+                                    ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300'
+                                    : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'
                                 )}
                               >
                                 {position.side}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-600">
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                               {position.size}
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-600">
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                               {position.price}
                             </td>
                             <td
                               className={cn(
                                 "px-4 py-3 text-sm font-medium text-right",
                                 parseFloat(position.lossGain) >= 0
-                                  ? 'text-green-600'
-                                  : 'text-red-600'
+                                  ? 'text-green-600 dark:text-green-400'
+                                  : 'text-red-600 dark:text-red-400'
                               )}
                             >
                               {formatCurrency(position.lossGain)}
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-400">
+                            <td className="px-4 py-3 text-sm text-gray-400 dark:text-gray-500">
                               <Link to={`/position/${position.positionId}`}>
                                 <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                               </Link>

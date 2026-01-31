@@ -7,21 +7,21 @@ import { cn } from '@/lib/utils'
 import type { NewsItem } from '../types'
 
 function getSentimentInfo(sentiment: number) {
-  if (sentiment >= 1) return { label: 'Bullish', color: 'text-green-600', bgColor: 'bg-green-100', icon: TrendingUp }
-  if (sentiment <= -1) return { label: 'Bearish', color: 'text-red-600', bgColor: 'bg-red-100', icon: TrendingDown }
-  return { label: 'Neutral', color: 'text-gray-600', bgColor: 'bg-gray-100', icon: Minus }
+  if (sentiment >= 1) return { label: 'Bullish', color: 'text-green-600 dark:text-green-400', bgColor: 'bg-green-100 dark:bg-green-900', icon: TrendingUp }
+  if (sentiment <= -1) return { label: 'Bearish', color: 'text-red-600 dark:text-red-400', bgColor: 'bg-red-100 dark:bg-red-900', icon: TrendingDown }
+  return { label: 'Neutral', color: 'text-gray-600 dark:text-gray-400', bgColor: 'bg-gray-100 dark:bg-gray-800', icon: Minus }
 }
 
 function getSignalInfo(signal: string) {
   switch (signal) {
     case 'BUY_CANDIDATE':
-      return { label: 'BUY', color: 'text-green-700', bgColor: 'bg-green-100' }
+      return { label: 'BUY', color: 'text-green-700 dark:text-green-300', bgColor: 'bg-green-100 dark:bg-green-900' }
     case 'SELL_CANDIDATE':
-      return { label: 'SELL', color: 'text-red-700', bgColor: 'bg-red-100' }
+      return { label: 'SELL', color: 'text-red-700 dark:text-red-300', bgColor: 'bg-red-100 dark:bg-red-900' }
     case 'RISK_OFF':
-      return { label: 'RISK OFF', color: 'text-orange-700', bgColor: 'bg-orange-100' }
+      return { label: 'RISK OFF', color: 'text-orange-700 dark:text-orange-300', bgColor: 'bg-orange-100 dark:bg-orange-900' }
     default:
-      return { label: 'IGNORE', color: 'text-gray-500', bgColor: 'bg-gray-100' }
+      return { label: 'IGNORE', color: 'text-gray-500 dark:text-gray-400', bgColor: 'bg-gray-100 dark:bg-gray-800' }
   }
 }
 
@@ -38,14 +38,14 @@ function getTimeHorizonLabel(horizon: string) {
 function ImpactBars({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-gray-500 w-16">{label}</span>
+      <span className="text-xs text-gray-500 dark:text-gray-400 w-16">{label}</span>
       <div className="flex gap-0.5">
         {[1, 2, 3, 4, 5].map((i) => (
           <div
             key={i}
             className={cn(
               "w-2 h-3 rounded-sm",
-              i <= value ? 'bg-blue-500' : 'bg-gray-200'
+              i <= value ? 'bg-blue-500' : 'bg-gray-200 dark:bg-gray-700'
             )}
           />
         ))}
@@ -67,12 +67,12 @@ function NewsCard({ news }: { news: NewsItem }) {
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             {/* Title */}
-            <h3 className="font-medium text-gray-900 mb-2 line-clamp-2">
+            <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
               {news.title}
             </h3>
 
             {/* Summary */}
-            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
               {news.summary}
             </p>
 
@@ -98,12 +98,12 @@ function NewsCard({ news }: { news: NewsItem }) {
               </span>
 
               {/* Time Horizon */}
-              <span className="text-gray-500">
+              <span className="text-gray-500 dark:text-gray-400">
                 {getTimeHorizonLabel(news.time_horizon)}
               </span>
 
               {/* Date */}
-              <span className="text-gray-400 flex items-center gap-1">
+              <span className="text-gray-400 dark:text-gray-500 flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 {publishedDate.toLocaleDateString('ja-JP')}
               </span>
@@ -121,7 +121,7 @@ function NewsCard({ news }: { news: NewsItem }) {
             href={news.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-gray-400 hover:text-blue-500 transition-colors"
+            className="text-gray-400 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
           >
             <ExternalLink className="h-5 w-5" />
           </a>
@@ -135,13 +135,13 @@ export function NewsPage() {
   const { data: news = [], isLoading, error, refetch } = useNews(30)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header />
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-6">
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center justify-between">
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg flex items-center justify-between">
             <span>{error.message}</span>
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               Retry
@@ -152,13 +152,13 @@ export function NewsPage() {
         {isLoading ? (
           <div className="text-center py-12">
             <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-500" />
-            <p className="mt-2 text-gray-600">Loading news...</p>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">Loading news...</p>
           </div>
         ) : (
           <>
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 {news.length} articles
               </p>
               <Button variant="outline" size="sm" onClick={() => refetch()}>
@@ -170,7 +170,7 @@ export function NewsPage() {
             {/* News List */}
             {news.length === 0 ? (
               <Card>
-                <CardContent className="py-12 text-center text-gray-500">
+                <CardContent className="py-12 text-center text-gray-500 dark:text-gray-400">
                   No news available
                 </CardContent>
               </Card>

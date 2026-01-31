@@ -11,33 +11,33 @@ function getSignalInfo(signal: string) {
     case 'BUY_CANDIDATE':
       return {
         label: 'BUY',
-        color: 'text-green-700',
-        bgColor: 'bg-green-100',
+        color: 'text-green-700 dark:text-green-300',
+        bgColor: 'bg-green-100 dark:bg-green-900',
         borderColor: 'border-l-green-500',
         icon: TrendingUp
       }
     case 'SELL_CANDIDATE':
       return {
         label: 'SELL',
-        color: 'text-red-700',
-        bgColor: 'bg-red-100',
+        color: 'text-red-700 dark:text-red-300',
+        bgColor: 'bg-red-100 dark:bg-red-900',
         borderColor: 'border-l-red-500',
         icon: TrendingDown
       }
     case 'RISK_OFF':
       return {
         label: 'RISK OFF',
-        color: 'text-orange-700',
-        bgColor: 'bg-orange-100',
+        color: 'text-orange-700 dark:text-orange-300',
+        bgColor: 'bg-orange-100 dark:bg-orange-900',
         borderColor: 'border-l-orange-500',
         icon: AlertTriangle
       }
     default:
       return {
         label: signal,
-        color: 'text-gray-500',
-        bgColor: 'bg-gray-100',
-        borderColor: 'border-l-gray-300',
+        color: 'text-gray-500 dark:text-gray-400',
+        bgColor: 'bg-gray-100 dark:bg-gray-800',
+        borderColor: 'border-l-gray-300 dark:border-l-gray-600',
         icon: Clock
       }
   }
@@ -56,14 +56,14 @@ function getTimeHorizonLabel(horizon: string) {
 function ImpactBars({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-gray-500 w-16">{label}</span>
+      <span className="text-xs text-gray-500 dark:text-gray-400 w-16">{label}</span>
       <div className="flex gap-0.5">
         {[1, 2, 3, 4, 5].map((i) => (
           <div
             key={i}
             className={cn(
               "w-2 h-3 rounded-sm",
-              i <= value ? 'bg-blue-500' : 'bg-gray-200'
+              i <= value ? 'bg-blue-500' : 'bg-gray-200 dark:bg-gray-700'
             )}
           />
         ))}
@@ -100,34 +100,34 @@ function SignalCard({ signal }: { signal: SignalItem }) {
               )}>
                 {signalInfo.label}
               </span>
-              <span className="text-xs text-gray-400 flex items-center gap-1">
+              <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 {publishedDate.toLocaleDateString('ja-JP')} {publishedDate.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
 
             {/* Title */}
-            <h3 className="font-medium text-gray-900 mb-1 line-clamp-2">
+            <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-1 line-clamp-2">
               {signal.title}
             </h3>
 
             {/* Summary */}
-            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
               {signal.summary}
             </p>
 
             {/* Meta */}
             <div className="flex flex-wrap items-center gap-4">
               {/* Time Horizon */}
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
                 {getTimeHorizonLabel(signal.time_horizon)}
               </span>
 
               {/* Sentiment */}
               <span className={cn(
                 "text-xs",
-                signal.sentiment >= 1 ? 'text-green-600' :
-                signal.sentiment <= -1 ? 'text-red-600' : 'text-gray-500'
+                signal.sentiment >= 1 ? 'text-green-600 dark:text-green-400' :
+                signal.sentiment <= -1 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'
               )}>
                 Sentiment: {signal.sentiment > 0 ? '+' : ''}{signal.sentiment}
               </span>
@@ -157,13 +157,13 @@ export function SignalsPage() {
   }, {} as Record<string, SignalItem[]>)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header />
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-6">
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center justify-between">
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg flex items-center justify-between">
             <span>{error.message}</span>
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               Retry
@@ -174,13 +174,13 @@ export function SignalsPage() {
         {isLoading ? (
           <div className="text-center py-12">
             <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-500" />
-            <p className="mt-2 text-gray-600">Loading signals...</p>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">Loading signals...</p>
           </div>
         ) : (
           <>
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 {signals.length} signals (BUY / SELL / RISK OFF)
               </p>
               <Button variant="outline" size="sm" onClick={() => refetch()}>
@@ -192,7 +192,7 @@ export function SignalsPage() {
             {/* Signals List */}
             {signals.length === 0 ? (
               <Card>
-                <CardContent className="py-12 text-center text-gray-500">
+                <CardContent className="py-12 text-center text-gray-500 dark:text-gray-400">
                   No signals available
                 </CardContent>
               </Card>
@@ -200,7 +200,7 @@ export function SignalsPage() {
               <div className="space-y-6">
                 {Object.entries(groupedSignals).map(([date, dateSignals]) => (
                   <div key={date}>
-                    <h2 className="text-sm font-medium text-gray-500 mb-3">
+                    <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
                       {date}
                     </h2>
                     <div className="space-y-3">

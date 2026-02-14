@@ -135,16 +135,13 @@ class PlaceIFDOCOResponse(BaseModel):
 
 
 class ExecuteSignalsRequest(BaseModel):
-    """シグナル実行リクエスト"""
+    """シグナル実行リクエスト（v2.0）"""
 
-    symbols: List[str] = Field(
-        default=["USD_JPY"], description="対象通貨ペア"
-    )
     dry_run: bool = Field(default=True, description="DRY-RUNモード")
 
 
 class ExecuteSignalsResponse(BaseModel):
-    """シグナル実行レスポンス"""
+    """シグナル実行レスポンス（v2.0）"""
 
     status: str
     message: str
@@ -156,6 +153,14 @@ class RiskSummaryResponse(BaseModel):
     """リスクサマリーレスポンス"""
 
     status: str
+    data: dict
+
+
+class MonthlySummaryResponse(BaseModel):
+    """月間損益サマリーレスポンス（v2.0 研究用）"""
+
+    status: str
+    period: str
     data: dict
 
 
@@ -390,15 +395,16 @@ async def cancel_order(request: CancelOrderRequest):
 @router.post("/execute", response_model=ExecuteSignalsResponse)
 async def execute_signals(request: ExecuteSignalsRequest):
     """
-    シグナルに基づいて自動売買を実行
+    v2.0 シグナルに基づいて自動売買を実行
 
-    ルールエンジンでシグナルを評価し、条件を満たす場合に注文を発注
+    テクニカル → AIロット決定 → リスクチェック → IFDOCO注文
+    対象: USD_JPY のみ
 
     Args:
         request: 実行パラメータ
 
     Returns:
-        実行結果
+        実行結果（BUY/SELL/HOLD/SKIP）
     """
     try:
         # GMOクライアント初期化
@@ -408,16 +414,21 @@ async def execute_signals(request: ExecuteSignalsRequest):
         technical_analyzer = TechnicalAnalyzer(gmo_client)
         rule_engine = RuleEngine(technical_analyzer=technical_analyzer)
 
-        # トレード設定
+        # リスクマネージャー初期化
+        risk_config = RiskConfig()
+        risk_manager = RiskManager(config=risk_config)
+
+        # トレード設定（v2.0: USD_JPY固定）
         trade_config = TradeConfig(
-            symbols=request.symbols,
+            symbols=["USD_JPY"],
         )
 
-        # TradeExecutor
+        # TradeExecutor（RiskManager統合）
         executor = TradeExecutor(
             gmo_client=gmo_client,
             rule_engine=rule_engine,
             config=trade_config,
+            risk_manager=risk_manager,
         )
 
         # シグナル実行
@@ -427,11 +438,13 @@ async def execute_signals(request: ExecuteSignalsRequest):
         results_dict = [r.to_dict() for r in results]
 
         mode = "DRY-RUN" if request.dry_run else "LIVE"
-        executed = sum(1 for r in results if r.success)
+        actions = [r.action for r in results]
+        traded = sum(1 for a in actions if a in ("BUY", "SELL"))
+        skipped = sum(1 for a in actions if a == "SKIP")
 
         return ExecuteSignalsResponse(
             status="success",
-            message=f"[{mode}] Executed {executed}/{len(results)} signals",
+            message=f"[{mode}] traded={traded} skipped={skipped} hold={len(actions)-traded-skipped}",
             results=results_dict,
             dry_run=request.dry_run,
         )
@@ -465,4 +478,95 @@ async def get_risk_summary():
 
     except Exception as e:
         logger.error(f"Risk summary error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/monthly-summary", response_model=MonthlySummaryResponse)
+async def get_monthly_summary():
+    """
+    v2.0 月間損益サマリーを取得（研究用）
+
+    当月のトレード結果を集計し、AI運用 vs Baseline の比較データを返す。
+
+    Returns:
+        月間損益、勝率、ロット別成績、AI見送り統計
+    """
+    try:
+        from datetime import datetime
+        from google.cloud import firestore as fs
+
+        db = fs.Client()
+        now = datetime.now()
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        period = now.strftime("%Y-%m")
+
+        # 当月のトレードを取得
+        trades_ref = db.collection("trades")
+        query = trades_ref.where("created_at", ">=", month_start)
+
+        total_actual_pnl = 0.0
+        total_baseline_pnl = 0.0
+        win_count = 0
+        loss_count = 0
+        skip_count = 0
+        lot_stats: dict = {}  # ロット別集計
+
+        for doc in query.stream():
+            trade = doc.to_dict()
+
+            # AI見送りログ
+            if trade.get("skip_reason"):
+                skip_count += 1
+                continue
+
+            actual_pnl = trade.get("actual_pnl")
+            baseline_pnl = trade.get("baseline_pnl")
+            used_lot = trade.get("used_lot", 0)
+            status = trade.get("status", "")
+
+            # 決済済みのみ集計
+            if actual_pnl is not None:
+                total_actual_pnl += actual_pnl
+                if status == "WIN":
+                    win_count += 1
+                elif status == "LOSS":
+                    loss_count += 1
+
+            if baseline_pnl is not None:
+                total_baseline_pnl += baseline_pnl
+
+            # ロット別集計
+            lot_key = str(used_lot)
+            if lot_key not in lot_stats:
+                lot_stats[lot_key] = {"count": 0, "win": 0, "loss": 0, "pnl": 0.0}
+            lot_stats[lot_key]["count"] += 1
+            if status == "WIN":
+                lot_stats[lot_key]["win"] += 1
+            elif status == "LOSS":
+                lot_stats[lot_key]["loss"] += 1
+            if actual_pnl is not None:
+                lot_stats[lot_key]["pnl"] += actual_pnl
+
+        total_trades = win_count + loss_count
+        win_rate = (win_count / total_trades * 100) if total_trades > 0 else 0.0
+        ai_advantage = total_actual_pnl - total_baseline_pnl
+
+        return MonthlySummaryResponse(
+            status="success",
+            period=period,
+            data={
+                "total_trades": total_trades,
+                "win_count": win_count,
+                "loss_count": loss_count,
+                "win_rate": round(win_rate, 1),
+                "skip_count": skip_count,
+                "actual_pnl": round(total_actual_pnl, 0),
+                "baseline_pnl": round(total_baseline_pnl, 0),
+                "ai_advantage": round(ai_advantage, 0),
+                "lot_stats": lot_stats,
+            },
+        )
+
+    except Exception as e:
+        logger.error(f"Monthly summary error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

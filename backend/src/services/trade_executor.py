@@ -3,6 +3,7 @@ Trade Executor
 
 シグナルに基づいて自動売買を実行するクラス
 Phase 4: 自動売買機能
+v2.0: AIロット決定 + IFDOCO注文
 """
 
 import logging
@@ -17,6 +18,7 @@ from .gmo_client import (
     GMOCoinClient,
     OrderError,
 )
+from .risk_manager import RiskManager
 from .rule_engine import RuleEngine
 
 logger = logging.getLogger(__name__)
@@ -72,9 +74,9 @@ class TradeResult:
 
 class TradeExecutor:
     """
-    トレード実行クラス
+    トレード実行クラス（v2.0）
 
-    ルールエンジンからのシグナルに基づいて自動売買を実行
+    テクニカル → AIロット決定 → リスクチェック → IFDOCO注文
     """
 
     def __init__(
@@ -82,6 +84,7 @@ class TradeExecutor:
         gmo_client: GMOCoinClient,
         rule_engine: RuleEngine,
         config: TradeConfig,
+        risk_manager: Optional[RiskManager] = None,
         db: Optional[firestore.Client] = None,
         database_id: str = "(default)",
     ):
@@ -92,12 +95,14 @@ class TradeExecutor:
             gmo_client: GMOコインクライアント
             rule_engine: ルールエンジン
             config: トレード設定
+            risk_manager: リスクマネージャー（オプション）
             db: Firestoreクライアント（オプション）
             database_id: FirestoreデータベースID
         """
         self.gmo_client = gmo_client
         self.rule_engine = rule_engine
         self.config = config
+        self.risk_manager = risk_manager
         self.database_id = database_id
 
         # Firestore
@@ -129,8 +134,8 @@ class TradeExecutor:
                 result = self.execute_signal_for_symbol(symbol)
                 results.append(result)
 
-                # 結果をFirestoreに保存
-                if self.db:
+                # 実行された取引のみFirestoreに保存（SKIP/HOLDは個別に保存済み）
+                if self.db and result.action in ("BUY", "SELL"):
                     self._save_trade_result(result)
 
             except Exception as e:
@@ -151,7 +156,13 @@ class TradeExecutor:
 
     def execute_signal_for_symbol(self, symbol: str) -> TradeResult:
         """
-        特定シンボルのシグナルを評価し、トレードを実行
+        v2.0 取引実行フロー
+
+        1. テクニカル判定 → buy/sell/hold
+        2. hold → 終了
+        3. AIロット決定 → 0なら終了（スキップログ記録）
+        4. リスクチェック
+        5. IFDOCO注文発注
 
         Args:
             symbol: 通貨ペア
@@ -161,7 +172,7 @@ class TradeExecutor:
         """
         logger.info(f"Evaluating signal for {symbol}")
 
-        # シグナル生成
+        # 1. シグナル生成（テクニカル + ニュースサマリー）
         signal_data = self.rule_engine.generate_signal(symbol)
 
         if not signal_data:
@@ -178,17 +189,14 @@ class TradeExecutor:
         signal = signal_data.get("signal", "hold")
         confidence = signal_data.get("confidence", 0.0)
         reason = signal_data.get("reason", "")
+        news_summary = signal_data.get("news_summary", {})
 
         logger.info(
             f"Signal for {symbol}: {signal} (confidence: {confidence:.2%})"
         )
 
-        # シグナルに応じたアクション（v2.0: min_confidence フィルタ廃止、ロット=0に役割移管）
-        if signal == "buy":
-            return self._execute_buy(symbol, confidence, reason)
-        elif signal == "sell":
-            return self._execute_sell(symbol, confidence, reason)
-        else:
+        # 2. hold → 終了
+        if signal == "hold":
             return TradeResult(
                 success=True,
                 action="HOLD",
@@ -199,22 +207,60 @@ class TradeExecutor:
                 dry_run=self.gmo_client.dry_run,
             )
 
-    def _execute_buy(
-        self, symbol: str, confidence: float, signal_reason: str
-    ) -> TradeResult:
-        """
-        買い注文を実行
+        # 3. AIロット決定
+        lot, lot_reason = self.rule_engine.determine_lot(signal, news_summary)
 
-        Args:
-            symbol: 通貨ペア
-            confidence: シグナル信頼度
-            signal_reason: シグナル理由
+        # AI決定をFirestoreに保存
+        self.rule_engine.save_daily_ai_decision(
+            symbol=symbol,
+            signal=signal,
+            lot=lot,
+            lot_reason=lot_reason,
+            news_summary=news_summary,
+        )
 
-        Returns:
-            トレード結果
-        """
+        logger.info(f"AI lot decision: {lot} ({lot_reason})")
+
+        # lot = 0 → スキップ（ログ記録）
+        if lot == 0:
+            self._save_skip_log(
+                symbol=symbol,
+                side=signal.upper(),
+                signal_data=signal_data,
+                lot_reason=lot_reason,
+                news_summary=news_summary,
+            )
+            return TradeResult(
+                success=True,
+                action="SKIP",
+                symbol=symbol,
+                size=0,
+                reason=f"AI skip: {lot_reason}",
+                timestamp=datetime.now(),
+                dry_run=self.gmo_client.dry_run,
+            )
+
+        # 4. リスクチェック
+        if self.risk_manager:
+            risk_result = self.risk_manager.check_trade_allowed(
+                symbol=symbol,
+                side=signal.upper(),
+                size=lot,
+            )
+            if not risk_result.can_trade:
+                logger.info(f"Risk check failed: {risk_result.reason}")
+                return TradeResult(
+                    success=True,
+                    action="SKIP",
+                    symbol=symbol,
+                    size=0,
+                    reason=f"Risk check: {risk_result.reason}",
+                    timestamp=datetime.now(),
+                    dry_run=self.gmo_client.dry_run,
+                )
+
         # ポジション数チェック
-        can_trade, check_reason = self._can_open_position(symbol, "BUY")
+        can_trade, check_reason = self._can_open_position(symbol, signal.upper())
         if not can_trade:
             return TradeResult(
                 success=True,
@@ -226,96 +272,175 @@ class TradeExecutor:
                 dry_run=self.gmo_client.dry_run,
             )
 
-        # 注文実行
-        try:
-            order_result = self.gmo_client.place_order(
-                symbol=symbol,
-                side="BUY",
-                size=1000,
-                execution_type=self.config.execution_type,
-            )
+        # 5. IFDOCO注文発注
+        return self._execute_ifdoco_order(
+            symbol=symbol,
+            side=signal.upper(),
+            lot=lot,
+            signal_data=signal_data,
+            lot_reason=lot_reason,
+        )
 
-            return TradeResult(
-                success=True,
-                action="BUY",
-                symbol=symbol,
-                size=1000,
-                order_id=order_result.get("orderId"),
-                reason=signal_reason,
-                timestamp=datetime.now(),
-                dry_run=order_result.get("_dry_run", False),
-            )
-
-        except (AuthenticationError, OrderError) as e:
-            logger.error(f"Buy order failed for {symbol}: {e}")
-            return TradeResult(
-                success=False,
-                action="BUY",
-                symbol=symbol,
-                size=1000,
-                reason=f"Order failed: {str(e)}",
-                timestamp=datetime.now(),
-                dry_run=self.gmo_client.dry_run,
-            )
-
-    def _execute_sell(
-        self, symbol: str, confidence: float, signal_reason: str
+    def _execute_ifdoco_order(
+        self,
+        symbol: str,
+        side: Literal["BUY", "SELL"],
+        lot: int,
+        signal_data: Dict,
+        lot_reason: str,
     ) -> TradeResult:
         """
-        売り注文を実行
+        IFDOCO注文を実行
+
+        エントリー価格 = 現在価格 ± buffer（即約定を狙うLIMIT）
+        SL = entry ∓ 40pips
+        TP = entry ± 40pips
 
         Args:
             symbol: 通貨ペア
-            confidence: シグナル信頼度
-            signal_reason: シグナル理由
+            side: 売買区分
+            lot: ロット（通貨単位）
+            signal_data: シグナルデータ
+            lot_reason: ロット決定理由
 
         Returns:
             トレード結果
         """
-        # ポジション数チェック
-        can_trade, check_reason = self._can_open_position(symbol, "SELL")
-        if not can_trade:
-            return TradeResult(
-                success=True,
-                action="SKIP",
-                symbol=symbol,
-                size=0,
-                reason=check_reason,
-                timestamp=datetime.now(),
-                dry_run=self.gmo_client.dry_run,
-            )
+        current_price = signal_data["technical"]["latest_price"]
 
-        # 注文実行
+        # エントリー・SL・TP価格を計算
+        pip_value = 0.01 if symbol.endswith("_JPY") else 0.0001
+        buffer = self.config.entry_buffer_pips * pip_value
+
+        if side == "BUY":
+            entry_price = current_price + buffer
+        else:
+            entry_price = current_price - buffer
+
+        # SL/TP計算
+        if self.risk_manager:
+            sl_price = self.risk_manager.calculate_stop_loss_price(entry_price, side, symbol)
+            tp_price = self.risk_manager.calculate_take_profit_price(entry_price, side, symbol)
+        else:
+            sl_distance = 40.0 * pip_value
+            tp_distance = 40.0 * pip_value
+            if side == "BUY":
+                sl_price = entry_price - sl_distance
+                tp_price = entry_price + tp_distance
+            else:
+                sl_price = entry_price + sl_distance
+                tp_price = entry_price - tp_distance
+
+        logger.info(
+            f"IFDOCO order: {side} {lot} {symbol} "
+            f"entry={entry_price:.3f} SL={sl_price:.3f} TP={tp_price:.3f}"
+        )
+
         try:
-            order_result = self.gmo_client.place_order(
+            order_result = self.gmo_client.place_ifdoco_order(
                 symbol=symbol,
-                side="SELL",
-                size=1000,
-                execution_type=self.config.execution_type,
+                first_side=side,
+                first_execution_type="LIMIT",
+                first_size=lot,
+                first_price=str(entry_price),
+                second_size=lot,
+                second_limit_price=str(tp_price),
+                second_stop_price=str(sl_price),
+            )
+
+            # 注文IDの抽出（IFDOCO responseはdata配列）
+            order_id = None
+            if isinstance(order_result, dict):
+                data = order_result.get("data", [])
+                if data and isinstance(data, list):
+                    order_id = data[0].get("orderId")
+                if not order_id:
+                    order_id = order_result.get("orderId")
+
+            trade_reason = (
+                f"{signal_data.get('reason', '')} | "
+                f"lot={lot} ({lot_reason})"
             )
 
             return TradeResult(
                 success=True,
-                action="SELL",
+                action=side,
                 symbol=symbol,
-                size=1000,
-                order_id=order_result.get("orderId"),
-                reason=signal_reason,
+                size=lot,
+                order_id=order_id,
+                reason=trade_reason,
                 timestamp=datetime.now(),
                 dry_run=order_result.get("_dry_run", False),
             )
 
         except (AuthenticationError, OrderError) as e:
-            logger.error(f"Sell order failed for {symbol}: {e}")
+            logger.error(f"IFDOCO order failed for {symbol}: {e}")
             return TradeResult(
                 success=False,
-                action="SELL",
+                action=side,
                 symbol=symbol,
-                size=1000,
-                reason=f"Order failed: {str(e)}",
+                size=lot,
+                reason=f"IFDOCO order failed: {str(e)}",
                 timestamp=datetime.now(),
                 dry_run=self.gmo_client.dry_run,
             )
+
+    def _save_skip_log(
+        self,
+        symbol: str,
+        side: str,
+        signal_data: Dict,
+        lot_reason: str,
+        news_summary: Dict,
+    ) -> Optional[str]:
+        """
+        AI見送りログをFirestoreに保存
+
+        Args:
+            symbol: 通貨ペア
+            side: テクニカルが出した方向
+            signal_data: シグナルデータ
+            lot_reason: スキップ理由
+            news_summary: ニュースサマリー
+
+        Returns:
+            ドキュメントID
+        """
+        if not self.db:
+            return None
+
+        try:
+            now = datetime.now()
+            doc_id = f"skipped_{now.strftime('%Y%m%d_%H%M%S')}_{symbol}"
+
+            doc_data = {
+                "trade_id": doc_id,
+                "symbol": symbol,
+                "side": side,
+                "used_lot": 0,
+                "skip_reason": "AI_FUNDAMENTAL_OPPOSE",
+                "lot_reason": lot_reason,
+                "ai_decision": {
+                    "avg_sentiment": news_summary.get("avg_sentiment", 0.0),
+                    "avg_impact": news_summary.get("avg_impact", 0.0),
+                    "news_count": news_summary.get("count", 0),
+                    "lot_reason": lot_reason,
+                },
+                "technical_score": {
+                    "confidence": signal_data.get("confidence", 0.0),
+                },
+                "baseline_pnl": None,
+                "created_at": now,
+                "dry_run": self.gmo_client.dry_run,
+            }
+
+            self.db.collection("trades").document(doc_id).set(doc_data)
+            logger.info(f"Skip log saved: {doc_id}")
+            return doc_id
+
+        except Exception as e:
+            logger.error(f"Failed to save skip log: {e}")
+            return None
 
     def _can_open_position(
         self, symbol: str, side: Literal["BUY", "SELL"]

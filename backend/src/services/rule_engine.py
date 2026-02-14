@@ -343,6 +343,100 @@ class RuleEngine:
 
         return signal, confidence, reason
 
+    def determine_lot(
+        self,
+        signal: str,
+        news_summary: Dict,
+    ) -> tuple[int, str]:
+        """
+        AIロット決定（v2.0）
+
+        テクニカル方向とニュースのsentiment/impactから
+        ロットサイズ（0/500/1000/1500通貨）を決定する。
+
+        Args:
+            signal: テクニカルシグナル ("buy" / "sell" / "hold")
+            news_summary: ニュースサマリー (avg_sentiment, avg_impact, count)
+
+        Returns:
+            (lot, lot_reason)
+            lot: 0, 500, 1000, or 1500
+            lot_reason: 決定理由の文字列
+        """
+        sentiment = news_summary.get("avg_sentiment", 0.0)
+        impact = news_summary.get("avg_impact", 0.0)
+        count = news_summary.get("count", 0)
+
+        if signal == "hold":
+            return 0, "テクニカル=HOLD: 取引なし"
+
+        if signal == "buy":
+            if sentiment > 0.5 and impact >= 3:
+                return 1500, f"ファンダが買いを強く支持 (sentiment={sentiment:.2f}, impact={impact:.1f})"
+            elif sentiment > 0:
+                return 1000, f"ファンダがやや買い支持 (sentiment={sentiment:.2f})"
+            elif count == 0 or sentiment == 0:
+                return 500, f"ファンダ中立 (sentiment={sentiment:.2f}, count={count})"
+            else:  # sentiment < 0
+                return 0, f"ファンダが買いに反対 (sentiment={sentiment:.2f}) → 見送り"
+
+        if signal == "sell":
+            if sentiment < -0.5 and impact >= 3:
+                return 1500, f"ファンダが売りを強く支持 (sentiment={sentiment:.2f}, impact={impact:.1f})"
+            elif sentiment < 0:
+                return 1000, f"ファンダがやや売り支持 (sentiment={sentiment:.2f})"
+            elif count == 0 or sentiment == 0:
+                return 500, f"ファンダ中立 (sentiment={sentiment:.2f}, count={count})"
+            else:  # sentiment > 0
+                return 0, f"ファンダが売りに反対 (sentiment={sentiment:.2f}) → 見送り"
+
+        return 0, f"不明なシグナル: {signal}"
+
+    def save_daily_ai_decision(
+        self,
+        symbol: str,
+        signal: str,
+        lot: int,
+        lot_reason: str,
+        news_summary: Dict,
+    ) -> Optional[str]:
+        """
+        日次AIロット決定をFirestoreに保存
+
+        Args:
+            symbol: 通貨ペア
+            signal: テクニカルシグナル
+            lot: 決定されたロット
+            lot_reason: ロット決定理由
+            news_summary: ニュースサマリー
+
+        Returns:
+            ドキュメントID（失敗時はNone）
+        """
+        try:
+            now = datetime.utcnow()
+            doc_id = f"{now.strftime('%Y%m%d_%H%M%S')}_{symbol}"
+
+            decision = {
+                "symbol": symbol,
+                "signal": signal,
+                "lot": lot,
+                "lot_reason": lot_reason,
+                "avg_sentiment": news_summary.get("avg_sentiment", 0.0),
+                "avg_impact": news_summary.get("avg_impact", 0.0),
+                "news_count": news_summary.get("count", 0),
+                "created_at": now,
+            }
+
+            self.db.collection("daily_ai_decisions").document(doc_id).set(decision)
+            logger.info(f"Daily AI decision saved: {doc_id} (lot={lot})")
+
+            return doc_id
+
+        except Exception as e:
+            logger.error(f"Failed to save daily AI decision: {e}")
+            return None
+
     def generate_multiple_signals(
         self, symbols: List[str], interval: str = "1hour", lookback_hours: int = 24
     ) -> Dict[str, Dict]:

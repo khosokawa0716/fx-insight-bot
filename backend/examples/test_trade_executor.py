@@ -78,11 +78,12 @@ def test_risk_manager():
     try:
         # リスク管理設定
         risk_config = RiskConfig(
-            stop_loss_pips=50.0,
-            take_profit_pips=100.0,
-            max_daily_loss=50000.0,
-            max_daily_trades=10,
-            max_consecutive_losses=3,
+            stop_loss_pips=40.0,
+            take_profit_pips=40.0,
+            max_monthly_loss=5000.0,
+            max_daily_trades=2,
+            min_trade_interval_hours=6,
+            max_consecutive_losses=7,
         )
 
         risk_manager = RiskManager(config=risk_config, db=None)
@@ -148,10 +149,6 @@ def test_trade_executor_dry_run():
         # トレード設定
         trade_config = TradeConfig(
             symbols=["USD_JPY"],
-            default_size=1,
-            max_positions_per_symbol=3,
-            max_total_positions=5,
-            min_confidence=0.5,  # テスト用に低めに設定
         )
 
         # TradeExecutor初期化
@@ -234,8 +231,7 @@ def test_account_summary():
         )
 
         trade_config = TradeConfig(
-            symbols=["USD_JPY", "EUR_JPY"],
-            default_size=1,
+            symbols=["USD_JPY"],
         )
 
         executor = TradeExecutor(

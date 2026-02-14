@@ -6,7 +6,7 @@ Phase 4: 自動売買機能
 """
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
@@ -24,23 +24,23 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class TradeConfig:
-    """トレード設定"""
+    """トレード設定（v2.0）"""
 
     # 取引対象
     symbols: List[str]
 
-    # ポジションサイズ（1 = 1通貨。USD_JPYの最小: 100）
-    default_size: int = 1
+    # AIロット選択肢（通貨単位）
+    lot_options: List[int] = field(default_factory=lambda: [0, 500, 1000, 1500])
 
     # リスク管理
-    max_positions_per_symbol: int = 3  # 1通貨ペアあたりの最大ポジション数
-    max_total_positions: int = 5  # 全体の最大ポジション数
+    max_positions_per_symbol: int = 1
+    max_total_positions: int = 1
 
-    # シグナル閾値
-    min_confidence: float = 0.7  # 最低信頼度（これ以上でのみ取引）
+    # 注文方式
+    execution_type: str = "IFDOCO"
 
-    # 取引タイプ
-    execution_type: Literal["MARKET", "LIMIT"] = "MARKET"
+    # エントリーバッファ（pips）- IFDOCO 1次注文の指値バッファ
+    entry_buffer_pips: float = 1.0
 
 
 @dataclass
@@ -183,19 +183,7 @@ class TradeExecutor:
             f"Signal for {symbol}: {signal} (confidence: {confidence:.2%})"
         )
 
-        # 信頼度チェック
-        if confidence < self.config.min_confidence:
-            return TradeResult(
-                success=True,
-                action="HOLD",
-                symbol=symbol,
-                size=0,
-                reason=f"Confidence too low: {confidence:.2%} < {self.config.min_confidence:.2%}",
-                timestamp=datetime.now(),
-                dry_run=self.gmo_client.dry_run,
-            )
-
-        # シグナルに応じたアクション
+        # シグナルに応じたアクション（v2.0: min_confidence フィルタ廃止、ロット=0に役割移管）
         if signal == "buy":
             return self._execute_buy(symbol, confidence, reason)
         elif signal == "sell":
@@ -243,7 +231,7 @@ class TradeExecutor:
             order_result = self.gmo_client.place_order(
                 symbol=symbol,
                 side="BUY",
-                size=self.config.default_size,
+                size=1000,
                 execution_type=self.config.execution_type,
             )
 
@@ -251,7 +239,7 @@ class TradeExecutor:
                 success=True,
                 action="BUY",
                 symbol=symbol,
-                size=self.config.default_size,
+                size=1000,
                 order_id=order_result.get("orderId"),
                 reason=signal_reason,
                 timestamp=datetime.now(),
@@ -264,7 +252,7 @@ class TradeExecutor:
                 success=False,
                 action="BUY",
                 symbol=symbol,
-                size=self.config.default_size,
+                size=1000,
                 reason=f"Order failed: {str(e)}",
                 timestamp=datetime.now(),
                 dry_run=self.gmo_client.dry_run,
@@ -302,7 +290,7 @@ class TradeExecutor:
             order_result = self.gmo_client.place_order(
                 symbol=symbol,
                 side="SELL",
-                size=self.config.default_size,
+                size=1000,
                 execution_type=self.config.execution_type,
             )
 
@@ -310,7 +298,7 @@ class TradeExecutor:
                 success=True,
                 action="SELL",
                 symbol=symbol,
-                size=self.config.default_size,
+                size=1000,
                 order_id=order_result.get("orderId"),
                 reason=signal_reason,
                 timestamp=datetime.now(),
@@ -323,7 +311,7 @@ class TradeExecutor:
                 success=False,
                 action="SELL",
                 symbol=symbol,
-                size=self.config.default_size,
+                size=1000,
                 reason=f"Order failed: {str(e)}",
                 timestamp=datetime.now(),
                 dry_run=self.gmo_client.dry_run,

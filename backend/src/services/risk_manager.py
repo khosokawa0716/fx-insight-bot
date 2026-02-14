@@ -3,6 +3,7 @@ Risk Manager
 
 リスク管理機能を提供するクラス
 Phase 4: 自動売買機能
+v2.0: 月間損失管理、取引間隔チェック追加
 """
 
 import logging
@@ -17,25 +18,25 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class RiskConfig:
-    """リスク管理設定"""
+    """リスク管理設定（v2.0）"""
 
     # 損切り設定（pips）
-    stop_loss_pips: float = 50.0  # 50pips
+    stop_loss_pips: float = 40.0
 
     # 利確設定（pips）
-    take_profit_pips: float = 100.0  # 100pips
+    take_profit_pips: float = 40.0
 
-    # 1日あたりの最大損失額（円）
-    max_daily_loss: float = 50000.0  # 5万円
+    # 月間最大損失額（円）
+    max_monthly_loss: float = 5000.0
 
     # 1日あたりの最大取引回数
-    max_daily_trades: int = 10
+    max_daily_trades: int = 2
 
-    # ポジション保有時間の上限（時間）
-    max_position_hours: int = 24
+    # 取引間隔の最小値（時間）
+    min_trade_interval_hours: int = 6
 
     # 連続損失での取引停止回数
-    max_consecutive_losses: int = 3
+    max_consecutive_losses: int = 7
 
     # 必要証拠金率（%）- この割合を下回ると新規取引停止
     min_margin_ratio: float = 100.0
@@ -94,8 +95,7 @@ class RiskManager:
                 logger.warning(f"Firestore initialization failed: {e}")
                 self.db = None
 
-        # メモリ内の損失追跡（日次リセット）
-        self._daily_loss = 0.0
+        # メモリ内の取引追跡（日次リセット）
         self._daily_trades = 0
         self._consecutive_losses = 0
         self._last_reset_date: Optional[datetime] = None
@@ -110,7 +110,14 @@ class RiskManager:
         account_assets: Optional[Dict] = None,
     ) -> RiskCheckResult:
         """
-        取引が許可されるかチェック
+        取引が許可されるかチェック（v2.0）
+
+        チェック項目:
+        1. 連続損失
+        2. 月間損失上限
+        3. 日次取引回数
+        4. 取引間隔（6時間以上）
+        5. 証拠金率
 
         Args:
             symbol: 通貨ペア
@@ -127,7 +134,6 @@ class RiskManager:
             "symbol": symbol,
             "side": side,
             "size": size,
-            "daily_loss": self._daily_loss,
             "daily_trades": self._daily_trades,
             "consecutive_losses": self._consecutive_losses,
         }
@@ -141,11 +147,14 @@ class RiskManager:
                 details=details,
             )
 
-        # 2. 日次損失チェック
-        if self._daily_loss >= self.config.max_daily_loss:
+        # 2. 月間損失チェック
+        can_trade_monthly, monthly_loss = self.check_monthly_loss()
+        details["monthly_loss"] = monthly_loss
+        details["max_monthly_loss"] = self.config.max_monthly_loss
+        if not can_trade_monthly:
             return RiskCheckResult(
                 can_trade=False,
-                reason=f"Daily loss limit reached: {self._daily_loss:.0f}/{self.config.max_daily_loss:.0f} JPY",
+                reason=f"Monthly loss limit reached: {monthly_loss:.0f}/{self.config.max_monthly_loss:.0f} JPY",
                 risk_level="CRITICAL",
                 details=details,
             )
@@ -159,14 +168,24 @@ class RiskManager:
                 details=details,
             )
 
-        # 4. 証拠金率チェック（口座情報がある場合）
+        # 4. 取引間隔チェック
+        can_trade_interval, last_trade_time = self.check_trade_interval()
+        if not can_trade_interval:
+            return RiskCheckResult(
+                can_trade=False,
+                reason=f"Trade interval too short: min {self.config.min_trade_interval_hours}h required",
+                risk_level="HIGH",
+                details={**details, "last_trade_time": str(last_trade_time)},
+            )
+
+        # 5. 証拠金率チェック（口座情報がある場合）
         if account_assets:
             margin_check = self._check_margin_ratio(account_assets)
             if not margin_check.can_trade:
                 return margin_check
 
         # リスクレベルの判定
-        risk_level = self._calculate_risk_level()
+        risk_level = self._calculate_risk_level(monthly_loss)
 
         return RiskCheckResult(
             can_trade=True,
@@ -174,6 +193,99 @@ class RiskManager:
             risk_level=risk_level,
             details=details,
         )
+
+    def check_monthly_loss(self) -> tuple[bool, float]:
+        """
+        月間累計損失をチェック
+
+        Firestoreのtradesコレクションから当月の決済済み取引を集計し、
+        累計損失がmax_monthly_lossを超えていないか確認する。
+
+        Returns:
+            (取引可能か, 当月累計損失額)
+        """
+        if not self.db:
+            logger.warning("Firestore not available, skipping monthly loss check")
+            return True, 0.0
+
+        try:
+            now = datetime.now()
+            month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+            trades_ref = self.db.collection("trades")
+            query = trades_ref.where("created_at", ">=", month_start)
+
+            monthly_loss = 0.0
+            for doc in query.stream():
+                trade = doc.to_dict()
+                pnl = trade.get("actual_pnl", 0.0)
+                if pnl < 0:
+                    monthly_loss += abs(pnl)
+
+            can_trade = monthly_loss < self.config.max_monthly_loss
+            if not can_trade:
+                logger.warning(
+                    f"Monthly loss limit reached: {monthly_loss:.0f}/{self.config.max_monthly_loss:.0f} JPY"
+                )
+
+            return can_trade, monthly_loss
+
+        except Exception as e:
+            logger.warning(f"Monthly loss check failed: {e}")
+            return True, 0.0
+
+    def check_trade_interval(self) -> tuple[bool, Optional[datetime]]:
+        """
+        前回取引からの間隔をチェック
+
+        Firestoreから直近の取引を取得し、min_trade_interval_hours以上
+        経過しているか確認する。
+
+        Returns:
+            (取引可能か, 前回取引時刻)
+        """
+        if not self.db:
+            return True, None
+
+        try:
+            trades_ref = self.db.collection("trades")
+            query = (
+                trades_ref
+                .order_by("created_at", direction=firestore.Query.DESCENDING)
+                .limit(1)
+            )
+
+            docs = list(query.stream())
+            if not docs:
+                return True, None
+
+            last_trade = docs[0].to_dict()
+            last_trade_time = last_trade.get("created_at")
+
+            if not last_trade_time:
+                return True, None
+
+            # Firestore TimestampをnaiveなPython datetimeに変換して比較
+            if hasattr(last_trade_time, "replace"):
+                last_trade_naive = last_trade_time.replace(tzinfo=None)
+            else:
+                last_trade_naive = last_trade_time
+
+            elapsed = datetime.now() - last_trade_naive
+            elapsed_hours = elapsed.total_seconds() / 3600
+
+            can_trade = elapsed_hours >= self.config.min_trade_interval_hours
+            if not can_trade:
+                logger.info(
+                    f"Trade interval check: {elapsed_hours:.1f}h elapsed, "
+                    f"min {self.config.min_trade_interval_hours}h required"
+                )
+
+            return can_trade, last_trade_time
+
+        except Exception as e:
+            logger.warning(f"Trade interval check failed: {e}")
+            return True, None
 
     def _check_margin_ratio(self, account_assets: Dict) -> RiskCheckResult:
         """証拠金率をチェック"""
@@ -216,10 +328,12 @@ class RiskManager:
                 details={},
             )
 
-    def _calculate_risk_level(self) -> Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]:
+    def _calculate_risk_level(
+        self, monthly_loss: float = 0.0
+    ) -> Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]:
         """現在のリスクレベルを計算"""
-        # 損失率
-        loss_ratio = self._daily_loss / self.config.max_daily_loss if self.config.max_daily_loss > 0 else 0
+        # 月間損失率
+        loss_ratio = monthly_loss / self.config.max_monthly_loss if self.config.max_monthly_loss > 0 else 0
 
         # 取引回数率
         trade_ratio = self._daily_trades / self.config.max_daily_trades if self.config.max_daily_trades > 0 else 0
@@ -242,7 +356,6 @@ class RiskManager:
 
         if self._last_reset_date is None or self._last_reset_date != today:
             logger.info("Resetting daily stats")
-            self._daily_loss = 0.0
             self._daily_trades = 0
             self._last_reset_date = today
 
@@ -257,14 +370,13 @@ class RiskManager:
         self._daily_trades += 1
 
         if profit_loss < 0:
-            self._daily_loss += abs(profit_loss)
             self._consecutive_losses += 1
         else:
             self._consecutive_losses = 0  # 利益が出たらリセット
 
         logger.info(
             f"Trade recorded: P/L={profit_loss:.0f}, "
-            f"daily_loss={self._daily_loss:.0f}, "
+            f"daily_trades={self._daily_trades}, "
             f"consecutive_losses={self._consecutive_losses}"
         )
 
@@ -335,49 +447,24 @@ class RiskManager:
         else:
             return 0.0001
 
-    def check_position_age(
-        self, position_timestamp: datetime
-    ) -> tuple[bool, str]:
-        """
-        ポジションの保有時間をチェック
-
-        Args:
-            position_timestamp: ポジションのタイムスタンプ
-
-        Returns:
-            (期限切れか, 理由)
-        """
-        age = datetime.now() - position_timestamp
-        age_hours = age.total_seconds() / 3600
-
-        if age_hours >= self.config.max_position_hours:
-            return (
-                True,
-                f"Position age exceeded: {age_hours:.1f}h > {self.config.max_position_hours}h",
-            )
-
-        return (False, f"Position age OK: {age_hours:.1f}h")
-
     def get_risk_summary(self) -> Dict[str, Any]:
-        """
-        リスク状況のサマリーを取得
-
-        Returns:
-            リスクサマリー
-        """
+        """リスク状況のサマリーを取得"""
         self._reset_daily_stats_if_needed()
 
+        _, monthly_loss = self.check_monthly_loss()
+
         return {
-            "daily_loss": self._daily_loss,
-            "max_daily_loss": self.config.max_daily_loss,
-            "daily_loss_ratio": self._daily_loss / self.config.max_daily_loss if self.config.max_daily_loss > 0 else 0,
+            "monthly_loss": monthly_loss,
+            "max_monthly_loss": self.config.max_monthly_loss,
+            "monthly_loss_ratio": monthly_loss / self.config.max_monthly_loss if self.config.max_monthly_loss > 0 else 0,
             "daily_trades": self._daily_trades,
             "max_daily_trades": self.config.max_daily_trades,
             "consecutive_losses": self._consecutive_losses,
             "max_consecutive_losses": self.config.max_consecutive_losses,
-            "risk_level": self._calculate_risk_level(),
+            "risk_level": self._calculate_risk_level(monthly_loss),
             "stop_loss_pips": self.config.stop_loss_pips,
             "take_profit_pips": self.config.take_profit_pips,
+            "min_trade_interval_hours": self.config.min_trade_interval_hours,
             "last_reset_date": self._last_reset_date.isoformat() if self._last_reset_date else None,
         }
 
@@ -388,6 +475,9 @@ class RiskManager:
     ) -> tuple[bool, str]:
         """
         ポジションを決済すべきかチェック
+
+        v2.0ではIFDOCO注文でSL/TPを証券会社側が管理するため、
+        このメソッドはモニタリング用途のみ。
 
         Args:
             position: ポジション情報
@@ -418,16 +508,5 @@ class RiskManager:
             return True, f"Take profit triggered: {current_price} >= {take_profit}"
         elif side == "SELL" and current_price <= take_profit:
             return True, f"Take profit triggered: {current_price} <= {take_profit}"
-
-        # ポジション保有時間チェック
-        timestamp_str = position.get("timestamp", "")
-        if timestamp_str:
-            try:
-                pos_time = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
-                expired, reason = self.check_position_age(pos_time)
-                if expired:
-                    return True, reason
-            except Exception as e:
-                logger.warning(f"Failed to parse position timestamp: {e}")
 
         return False, "Position OK"

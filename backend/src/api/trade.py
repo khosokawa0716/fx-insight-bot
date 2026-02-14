@@ -140,10 +140,6 @@ class ExecuteSignalsRequest(BaseModel):
     symbols: List[str] = Field(
         default=["USD_JPY"], description="対象通貨ペア"
     )
-    default_size: int = Field(default=1, ge=1, description="注文サイズ")
-    min_confidence: float = Field(
-        default=0.7, ge=0.0, le=1.0, description="最低信頼度"
-    )
     dry_run: bool = Field(default=True, description="DRY-RUNモード")
 
 
@@ -415,8 +411,6 @@ async def execute_signals(request: ExecuteSignalsRequest):
         # トレード設定
         trade_config = TradeConfig(
             symbols=request.symbols,
-            default_size=request.default_size,
-            min_confidence=request.min_confidence,
         )
 
         # TradeExecutor

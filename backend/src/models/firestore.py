@@ -62,6 +62,23 @@ class NewsEvent(BaseModel):
         }
 
 
+class AIDecision(BaseModel):
+    """v2.0: AI判断の記録"""
+
+    avg_sentiment: float = 0.0
+    avg_impact: float = 0.0
+    news_count: int = 0
+    lot_reason: str = ""
+
+
+class TechnicalScore(BaseModel):
+    """v2.0: テクニカルスコアの記録"""
+
+    buy_score: int = 0
+    sell_score: int = 0
+    confidence: float = 0.0
+
+
 class Trade(BaseModel):
     """Trading record"""
 
@@ -84,6 +101,16 @@ class Trade(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    # v2.0 追加フィールド（研究ログ）
+    used_lot: Optional[int] = None
+    actual_pnl: Optional[float] = None
+    baseline_pnl: Optional[float] = None
+    ai_decision: Optional[AIDecision] = None
+    technical_score: Optional[TechnicalScore] = None
+    order_type: Optional[str] = None
+    skip_reason: Optional[str] = None
+    lot_reason: Optional[str] = None
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -100,6 +127,8 @@ class Trade(BaseModel):
                 "rule_version": "v1.0",
                 "created_at": "2025-01-01T10:30:00Z",
                 "updated_at": "2025-01-01T10:30:00Z",
+                "used_lot": 1000,
+                "order_type": "IFDOCO",
             }
         }
 

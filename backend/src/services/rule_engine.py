@@ -97,7 +97,7 @@ class RuleEngine:
             news_summary = self._summarize_news(news_list, symbol)
 
             # 4. 統合判定
-            signal, confidence, reason = self._integrate_signals(
+            signal, confidence, reason, buy_score, sell_score = self._integrate_signals(
                 technical=technical, news_summary=news_summary, symbol=symbol
             )
 
@@ -109,6 +109,8 @@ class RuleEngine:
                 "technical": technical,
                 "news_summary": news_summary,
                 "reason": reason,
+                "buy_score": buy_score,
+                "sell_score": sell_score,
                 "rule_version": self.rule_version,
             }
 
@@ -230,7 +232,7 @@ class RuleEngine:
 
     def _integrate_signals(
         self, technical: Dict, news_summary: Dict, symbol: str
-    ) -> tuple[TradeSignal, float, str]:
+    ) -> tuple[TradeSignal, float, str, int, int]:
         """
         テクニカル指標とニュース分析を統合してシグナルを判定
 
@@ -240,10 +242,12 @@ class RuleEngine:
             symbol: 通貨ペア
 
         Returns:
-            (signal, confidence, reason)
+            (signal, confidence, reason, buy_score, sell_score)
             signal: "buy" or "sell" or "hold"
             confidence: 0.0-1.0
             reason: 判定理由
+            buy_score: 買いスコア
+            sell_score: 売りスコア
         """
         # テクニカル分析から判定
         tech_trend = technical["trend"]  # "up" or "down"
@@ -341,7 +345,7 @@ class RuleEngine:
             if reasons:
                 reason += " | " + " | ".join(reasons[:2])  # 最初の2つの理由を追加
 
-        return signal, confidence, reason
+        return signal, confidence, reason, buy_score, sell_score
 
     def determine_lot(
         self,

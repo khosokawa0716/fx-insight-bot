@@ -134,9 +134,7 @@ class TradeExecutor:
                 result = self.execute_signal_for_symbol(symbol)
                 results.append(result)
 
-                # 実行された取引のみFirestoreに保存（SKIP/HOLDは個別に保存済み）
-                if self.db and result.action in ("BUY", "SELL"):
-                    self._save_trade_result(result)
+                # BUY/SELLの保存は_execute_ifdoco_order内で実施済み
 
             except Exception as e:
                 logger.error(f"Error executing signal for {symbol}: {e}")
@@ -362,7 +360,7 @@ class TradeExecutor:
                 f"lot={lot} ({lot_reason})"
             )
 
-            return TradeResult(
+            result = TradeResult(
                 success=True,
                 action=side,
                 symbol=symbol,
@@ -372,6 +370,19 @@ class TradeExecutor:
                 timestamp=datetime.now(),
                 dry_run=order_result.get("_dry_run", False),
             )
+
+            # v2.0 研究ログ付きで保存
+            self._save_v2_trade_record(
+                result=result,
+                signal_data=signal_data,
+                lot=lot,
+                lot_reason=lot_reason,
+                entry_price=entry_price,
+                sl_price=sl_price,
+                tp_price=tp_price,
+            )
+
+            return result
 
         except (AuthenticationError, OrderError) as e:
             logger.error(f"IFDOCO order failed for {symbol}: {e}")
@@ -427,6 +438,8 @@ class TradeExecutor:
                     "lot_reason": lot_reason,
                 },
                 "technical_score": {
+                    "buy_score": signal_data.get("buy_score", 0),
+                    "sell_score": signal_data.get("sell_score", 0),
                     "confidence": signal_data.get("confidence", 0.0),
                 },
                 "baseline_pnl": None,
@@ -567,12 +580,27 @@ class TradeExecutor:
 
         return results
 
-    def _save_trade_result(self, result: TradeResult) -> Optional[str]:
+    def _save_v2_trade_record(
+        self,
+        result: TradeResult,
+        signal_data: Dict,
+        lot: int,
+        lot_reason: str,
+        entry_price: float,
+        sl_price: float,
+        tp_price: float,
+    ) -> Optional[str]:
         """
-        トレード結果をFirestoreに保存
+        v2.0 研究ログ付きでトレード結果をFirestoreに保存
 
         Args:
             result: トレード結果
+            signal_data: シグナルデータ（buy_score, sell_score含む）
+            lot: 使用ロット
+            lot_reason: ロット決定理由
+            entry_price: エントリー価格
+            sl_price: ストップロス価格
+            tp_price: テイクプロフィット価格
 
         Returns:
             ドキュメントID
@@ -581,20 +609,117 @@ class TradeExecutor:
             return None
 
         try:
-            trades_ref = self.db.collection("trades")
             timestamp = result.timestamp or datetime.now()
             doc_id = f"{timestamp.strftime('%Y%m%d_%H%M%S')}_{result.symbol}"
 
-            doc_data = result.to_dict()
-            doc_data["created_at"] = timestamp
+            news_summary = signal_data.get("news_summary", {})
 
-            trades_ref.document(doc_id).set(doc_data)
-            logger.info(f"Trade result saved: {doc_id}")
+            doc_data = {
+                # 基本フィールド
+                "trade_id": doc_id,
+                "symbol": result.symbol,
+                "side": result.action,
+                "entry_price": entry_price,
+                "exit_price": None,
+                "status": "open",
+                "order_id": result.order_id,
+                "order_type": "IFDOCO",
+                "stop_loss": sl_price,
+                "take_profit": tp_price,
+                # v2.0 研究ログフィールド
+                "used_lot": lot,
+                "actual_pnl": None,
+                "baseline_pnl": None,
+                "ai_decision": {
+                    "avg_sentiment": news_summary.get("avg_sentiment", 0.0),
+                    "avg_impact": news_summary.get("avg_impact", 0.0),
+                    "news_count": news_summary.get("count", 0),
+                    "lot_reason": lot_reason,
+                },
+                "technical_score": {
+                    "buy_score": signal_data.get("buy_score", 0),
+                    "sell_score": signal_data.get("sell_score", 0),
+                    "confidence": signal_data.get("confidence", 0.0),
+                },
+                "reason": result.reason,
+                "rule_version": signal_data.get("rule_version", "v2.0"),
+                "created_at": timestamp,
+                "dry_run": result.dry_run,
+            }
+
+            self.db.collection("trades").document(doc_id).set(doc_data)
+            logger.info(f"V2 trade record saved: {doc_id}")
             return doc_id
 
         except Exception as e:
-            logger.error(f"Failed to save trade result: {e}")
+            logger.error(f"Failed to save v2 trade record: {e}")
             return None
+
+    @staticmethod
+    def calculate_baseline_pnl(
+        entry_price: float,
+        exit_price: float,
+        side: str,
+    ) -> float:
+        """
+        Baseline損益を計算（1000通貨固定での仮想損益）
+
+        Args:
+            entry_price: エントリー価格
+            exit_price: 決済価格
+            side: 売買区分（"BUY" or "SELL"）
+
+        Returns:
+            baseline_pnl（円）
+        """
+        direction = 1 if side == "BUY" else -1
+        return (exit_price - entry_price) * 1000 * direction
+
+    def update_trade_settlement(
+        self,
+        trade_id: str,
+        exit_price: float,
+        actual_pnl: float,
+        side: str,
+        entry_price: float,
+    ) -> bool:
+        """
+        決済時にactual_pnl/baseline_pnlを更新
+
+        Args:
+            trade_id: トレードID（Firestoreドキュメント）
+            exit_price: 決済価格
+            actual_pnl: 実損益（円）
+            side: 売買区分
+            entry_price: エントリー価格
+
+        Returns:
+            更新成功か
+        """
+        if not self.db:
+            return False
+
+        try:
+            baseline_pnl = self.calculate_baseline_pnl(entry_price, exit_price, side)
+            status = "WIN" if actual_pnl >= 0 else "LOSS"
+
+            self.db.collection("trades").document(trade_id).update({
+                "exit_price": exit_price,
+                "actual_pnl": actual_pnl,
+                "baseline_pnl": baseline_pnl,
+                "status": status,
+                "closed_at": datetime.now(),
+            })
+
+            logger.info(
+                f"Trade settled: {trade_id} "
+                f"actual_pnl={actual_pnl:.0f} baseline_pnl={baseline_pnl:.0f} ({status})"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to update trade settlement: {e}")
+            return False
 
     def get_current_positions(self) -> Dict[str, List[Dict]]:
         """

@@ -91,7 +91,7 @@ class PlaceOrderRequest(BaseModel):
 
     symbol: str = Field(..., description="通貨ペア（例: USD_JPY）")
     side: Literal["BUY", "SELL"] = Field(..., description="売買区分")
-    size: int = Field(..., ge=1, description="注文数量（1=1万通貨）")
+    size: int = Field(..., ge=1, description="注文数量（1=1通貨。USD_JPYの最小: 100）")
     execution_type: Literal["MARKET", "LIMIT", "STOP"] = Field(
         default="MARKET", description="注文タイプ"
     )

@@ -29,7 +29,7 @@ class TradeConfig:
     # 取引対象
     symbols: List[str]
 
-    # ポジションサイズ（1 = 1万通貨）
+    # ポジションサイズ（1 = 1通貨。USD_JPYの最小: 100）
     default_size: int = 1
 
     # リスク管理

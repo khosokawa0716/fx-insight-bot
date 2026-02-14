@@ -453,7 +453,7 @@ class GMOCoinClient:
         Args:
             symbol: 通貨ペア（例: USD_JPY, EUR_JPY）
             side: 売買区分（BUY: 買い, SELL: 売り）
-            size: 注文数量（1 = 1万通貨）
+            size: 注文数量（1 = 1通貨。USD_JPYの最小: 100、刻み: 1）
             execution_type: 注文タイプ
                 - MARKET: 成行注文
                 - LIMIT: 指値注文
@@ -471,7 +471,7 @@ class GMOCoinClient:
                 "orderId": "123456789",
                 "symbol": "USD_JPY",
                 "side": "BUY",
-                "size": "1",
+                "size": "1000",
                 "executionType": "MARKET",
                 "status": "ORDERED"
             }
@@ -753,9 +753,9 @@ class GMOCoinClient:
             symbol: 通貨ペア（例: USD_JPY, EUR_JPY）
             first_side: 1次注文の売買区分（BUY/SELL）
             first_execution_type: 1次注文タイプ（LIMIT: 指値, STOP: 逆指値）
-            first_size: 1次注文数量（1 = 1万通貨）
+            first_size: 1次注文数量（1 = 1通貨。USD_JPYの最小: 100、刻み: 1）
             first_price: 1次注文レート
-            second_size: 2次注文数量（1 = 1万通貨）
+            second_size: 2次注文数量（1 = 1通貨）
             second_limit_price: 2次指値注文レート（利確価格）
             second_stop_price: 2次逆指値注文レート（損切り価格）
             client_order_id: 顧客注文ID（36文字以内、オプション）
@@ -771,7 +771,7 @@ class GMOCoinClient:
                     "orderType": "IFDOCO",
                     "executionType": "LIMIT",
                     "settleType": "OPEN",
-                    "size": "10000",
+                    "size": "1000",
                     "price": "135",
                     "status": "WAITING"
                 },
@@ -783,7 +783,7 @@ class GMOCoinClient:
                     "orderType": "IFDOCO",
                     "executionType": "LIMIT",
                     "settleType": "CLOSE",
-                    "size": "10000",
+                    "size": "1000",
                     "price": "140",
                     "status": "WAITING"
                 },
@@ -795,7 +795,7 @@ class GMOCoinClient:
                     "orderType": "IFDOCO",
                     "executionType": "STOP",
                     "settleType": "CLOSE",
-                    "size": "10000",
+                    "size": "1000",
                     "price": "132",
                     "status": "WAITING"
                 }
@@ -807,14 +807,14 @@ class GMOCoinClient:
             APIError: API呼び出しエラー
 
         Example:
-            # USD/JPYを135円で買い、140円で利確、132円で損切り
+            # USD/JPYを1000通貨、135円で買い、140円で利確、132円で損切り
             result = client.place_ifdoco_order(
                 symbol="USD_JPY",
                 first_side="BUY",
                 first_execution_type="LIMIT",
-                first_size=1,
+                first_size=1000,
                 first_price="135",
-                second_size=1,
+                second_size=1000,
                 second_limit_price="140",  # 利確
                 second_stop_price="132",   # 損切り
             )

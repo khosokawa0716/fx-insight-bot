@@ -10,6 +10,7 @@ pydantic-settings==2.1.0
 google-cloud-firestore==2.14.0
 google-cloud-bigquery==3.14.1
 google-cloud-aiplatform==1.39.0
+google-genai>=1.0.0
 
 # RSS & Web Scraping
 feedparser==6.0.10

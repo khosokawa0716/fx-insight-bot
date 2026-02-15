@@ -332,9 +332,9 @@ def test_ifdoco_order():
             symbol="USD_JPY",
             first_side="BUY",
             first_execution_type="LIMIT",
-            first_size=1,
+            first_size=100,
             first_price="155.000",
-            second_size=1,
+            second_size=100,
             second_limit_price="157.000",  # 利確（+200pips）
             second_stop_price="153.000",   # 損切り（-200pips）
         )
@@ -364,10 +364,10 @@ def test_ifdoco_order():
             symbol="EUR_JPY",
             first_side="SELL",
             first_execution_type="LIMIT",
-            first_size=1,
+            first_size=500,
             first_price="160.000",
             second_execution_type="LIMIT",
-            second_size=1,
+            second_size=500,
             second_price="158.000",
         )
 

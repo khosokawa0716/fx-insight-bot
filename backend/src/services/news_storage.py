@@ -11,7 +11,7 @@ from typing import List, Optional, Set
 
 from google.cloud import firestore
 
-from src.config import settings, get_credentials_path
+from src.config import settings
 from src.models.firestore import NewsEvent
 from src.services.news_analyzer import NewsAnalysisResult
 
@@ -51,12 +51,9 @@ class NewsStorage:
         self.project_id = project_id or settings.gcp_project_id
         self.database_id = database_id or settings.firestore_database_id
 
-        # Firestoreクライアント初期化
-        credentials_path = get_credentials_path()
-        self.db = firestore.Client(
-            project=self.project_id,
-            database=self.database_id,
-        )
+        # Firestoreクライアント初期化（共通クライアントを使用）
+        from src.utils.firestore_client import get_db
+        self.db = get_db()
 
         logger.info(
             f"NewsStorage initialized (project={self.project_id}, "

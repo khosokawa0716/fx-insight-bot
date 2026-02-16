@@ -24,23 +24,25 @@ class FirestoreClient:
 
     @classmethod
     def _create_client(cls) -> firestore.Client:
-        """Create Firestore client with service account credentials"""
-        credentials_path = get_credentials_path()
-
-        # Set environment variable for Google Cloud SDK
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(credentials_path)
-
-        # Create credentials from service account file
-        credentials = service_account.Credentials.from_service_account_file(
-            str(credentials_path)
-        )
-
-        # Initialize Firestore client
-        client = firestore.Client(
-            project=settings.gcp_project_id,
-            database=settings.firestore_database_id,
-            credentials=credentials,
-        )
+        """Create Firestore client with appropriate credentials"""
+        try:
+            # ローカル開発: サービスアカウントJSONを使用
+            credentials_path = get_credentials_path()
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(credentials_path)
+            credentials = service_account.Credentials.from_service_account_file(
+                str(credentials_path)
+            )
+            client = firestore.Client(
+                project=settings.gcp_project_id,
+                database=settings.firestore_database_id,
+                credentials=credentials,
+            )
+        except FileNotFoundError:
+            # Cloud Run: デフォルト認証情報（サービスアカウント自動付与）
+            client = firestore.Client(
+                project=settings.gcp_project_id,
+                database=settings.firestore_database_id,
+            )
 
         return client
 

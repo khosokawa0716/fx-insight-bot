@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Literal, Optional
 
 from google.cloud import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +214,7 @@ class RiskManager:
             month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
             trades_ref = self.db.collection("trades")
-            query = trades_ref.where("created_at", ">=", month_start)
+            query = trades_ref.where(filter=FieldFilter("created_at", ">=", month_start))
 
             monthly_loss = 0.0
             for doc in query.stream():

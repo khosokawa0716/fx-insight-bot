@@ -494,6 +494,7 @@ async def get_monthly_summary():
     try:
         from datetime import datetime
         from google.cloud import firestore as fs
+        from google.cloud.firestore_v1.base_query import FieldFilter
 
         db = fs.Client()
         now = datetime.now()
@@ -502,7 +503,7 @@ async def get_monthly_summary():
 
         # 当月のトレードを取得
         trades_ref = db.collection("trades")
-        query = trades_ref.where("created_at", ">=", month_start)
+        query = trades_ref.where(filter=FieldFilter("created_at", ">=", month_start))
 
         total_actual_pnl = 0.0
         total_baseline_pnl = 0.0

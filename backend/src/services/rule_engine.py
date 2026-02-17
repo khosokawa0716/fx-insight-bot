@@ -8,6 +8,8 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Literal
 
+from google.cloud.firestore_v1.base_query import FieldFilter
+
 from src.models.firestore import NewsEvent
 from src.services.technical_analyzer import TechnicalAnalyzer
 from src.utils.firestore_client import get_db
@@ -147,8 +149,8 @@ class RuleEngine:
             # Firestoreクエリ
             news_ref = self.db.collection("news")
             query = (
-                news_ref.where("collected_at", ">=", cutoff_time)
-                .where(impact_field, ">=", 3)  # インパクト3以上
+                news_ref.where(filter=FieldFilter("collected_at", ">=", cutoff_time))
+                .where(filter=FieldFilter(impact_field, ">=", 3))  # インパクト3以上
                 .order_by("collected_at", direction=firestore.Query.DESCENDING)
                 .limit(10)
             )

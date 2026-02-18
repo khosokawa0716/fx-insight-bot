@@ -90,7 +90,7 @@ class NewsStorage:
         Returns:
             True: 重複, False: 新規
         """
-        doc_ref = self.db.collection("news_events").document(news_id)
+        doc_ref = self.db.collection("news").document(news_id)
         doc = doc_ref.get()
 
         if doc.exists:
@@ -175,9 +175,9 @@ class NewsStorage:
             # NewsEventに変換
             news_event = self._convert_to_news_event(result, news_id)
 
-            # Firestoreに保存
-            doc_ref = self.db.collection("news_events").document(news_id)
-            doc_ref.set(news_event.model_dump(mode="json"))
+            # Firestoreに保存（datetimeはTimestamp型で保存するためmode="json"不使用）
+            doc_ref = self.db.collection("news").document(news_id)
+            doc_ref.set(news_event.model_dump())
 
             logger.info(f"Saved news: {news_id}")
             return news_id
@@ -252,7 +252,7 @@ class NewsStorage:
             NewsEventオブジェクト（存在しない場合はNone）
         """
         try:
-            doc_ref = self.db.collection("news_events").document(news_id)
+            doc_ref = self.db.collection("news").document(news_id)
             doc = doc_ref.get()
 
             if not doc.exists:
@@ -277,7 +277,7 @@ class NewsStorage:
         """
         try:
             docs = (
-                self.db.collection("news_events")
+                self.db.collection("news")
                 .order_by("collected_at", direction=firestore.Query.DESCENDING)
                 .limit(limit)
                 .stream()

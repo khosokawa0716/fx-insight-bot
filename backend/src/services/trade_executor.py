@@ -329,6 +329,18 @@ class TradeExecutor:
                 sl_price = entry_price + sl_distance
                 tp_price = entry_price - tp_distance
 
+        # 価格の小数点桁数を調整（GMO API仕様に合わせる）
+        if symbol.endswith("_JPY"):
+            # JPYペアはtickSize=0.001 → 小数点第3位まで
+            entry_price = round(entry_price, 3)
+            sl_price = round(sl_price, 3)
+            tp_price = round(tp_price, 3)
+        else:
+            # USDペアはtickSize=0.00001 → 小数点第5位まで
+            entry_price = round(entry_price, 5)
+            sl_price = round(sl_price, 5)
+            tp_price = round(tp_price, 5)
+
         logger.info(
             f"IFDOCO order: {side} {lot} {symbol} "
             f"entry={entry_price:.3f} SL={sl_price:.3f} TP={tp_price:.3f}"
@@ -340,10 +352,10 @@ class TradeExecutor:
                 first_side=side,
                 first_execution_type="LIMIT",
                 first_size=lot,
-                first_price=str(entry_price),
+                first_price=f"{entry_price:.3f}" if symbol.endswith("_JPY") else f"{entry_price:.5f}",
                 second_size=lot,
-                second_limit_price=str(tp_price),
-                second_stop_price=str(sl_price),
+                second_limit_price=f"{tp_price:.3f}" if symbol.endswith("_JPY") else f"{tp_price:.5f}",
+                second_stop_price=f"{sl_price:.3f}" if symbol.endswith("_JPY") else f"{sl_price:.5f}",
             )
 
             # 注文IDの抽出（IFDOCO responseはdata配列）

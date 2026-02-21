@@ -1,4 +1,4 @@
-const API_BASE_URL = ''
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
@@ -29,6 +29,11 @@ export class ApiClient {
     const response = await fetch(`${this.baseUrl}${endpoint}`, config)
 
     if (!response.ok) {
+      const errorBody = await response.json().catch(() => null)
+      const detail = errorBody?.detail
+      if (typeof detail === 'string' && detail.includes('ERR-5201')) {
+        throw new Error('MAINTENANCE')
+      }
       throw new Error(`API request failed: ${response.status} ${response.statusText}`)
     }
 

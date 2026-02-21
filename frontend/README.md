@@ -95,3 +95,6 @@ frontend/
 - Phase 5.3: shadcn/ui コンポーネント導入、React Query
 - Phase 5.4: 追加画面（ニュース、シグナル履歴）
 - Phase 5.5: ダークモード、Firebase Hosting デプロイ
+
+## 本番環境
+https://fx-insight-bot.web.app/

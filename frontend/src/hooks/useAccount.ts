@@ -7,7 +7,8 @@ export function useAccount() {
   return useQuery({
     queryKey: ['account'],
     queryFn: fetchAccount,
-    refetchInterval: POLLING_INTERVAL,
-    refetchIntervalInBackground: false, // タブが非アクティブ時はポーリング停止
+    refetchInterval: (query) => query.state.status === 'error' ? false : POLLING_INTERVAL,
+    refetchIntervalInBackground: false,
+    retry: false,
   })
 }

@@ -7,7 +7,8 @@ export function usePositions() {
   return useQuery({
     queryKey: ['positions'],
     queryFn: fetchPositions,
-    refetchInterval: POLLING_INTERVAL,
+    refetchInterval: (query) => query.state.status === 'error' ? false : POLLING_INTERVAL,
     refetchIntervalInBackground: false,
+    retry: false,
   })
 }

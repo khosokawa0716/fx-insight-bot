@@ -16,6 +16,7 @@ export function DashboardPage() {
 
   const loading = accountLoading || positionsLoading || healthLoading
   const error = accountError || positionsError || healthError
+  const isMaintenance = error?.message === 'MAINTENANCE'
 
   const refetch = () => {
     queryClient.invalidateQueries({ queryKey: ['account'] })
@@ -45,8 +46,17 @@ export function DashboardPage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-6">
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg flex items-center justify-between">
-            <span>{error.message}</span>
+          <div className={cn(
+            "mb-6 p-4 border rounded-lg flex items-center justify-between",
+            isMaintenance
+              ? "bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400"
+              : "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400"
+          )}>
+            <span>
+              {isMaintenance
+                ? 'GMOコイン メンテナンス中です。終了後に自動で再接続されません。Retryボタンで更新してください。'
+                : error.message}
+            </span>
             <Button variant="outline" size="sm" onClick={refetch}>
               Retry
             </Button>

@@ -1,8 +1,6 @@
-import { Bell, Clock, Palette, Shield } from 'lucide-react'
-import { useAuth } from '../contexts/AuthContext'
+import { Bell, Clock, Palette } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Header, Footer } from '@/components/layout'
 import { cn } from '@/lib/utils'
 
@@ -57,10 +55,8 @@ function ToggleSwitch({ enabled, onChange, disabled = false }: ToggleSwitchProps
 }
 
 export function SettingsPage() {
-  const { user, signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
 
-  // 設定値（現在は表示のみ、将来的にはlocalStorageやFirestoreで永続化）
   const settings = {
     autoRefresh: true,
     refreshInterval: 30,
@@ -71,7 +67,6 @@ export function SettingsPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header />
 
-      {/* Main Content */}
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         {/* Display Settings */}
         <Card>
@@ -121,32 +116,6 @@ export function SettingsPage() {
                 disabled
               />
             </SettingItem>
-          </CardContent>
-        </Card>
-
-        {/* Account Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Account</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <SettingItem
-              icon={<Shield className="h-5 w-5" />}
-              title="Email"
-              description="Your login email address"
-            >
-              <span className="text-sm text-gray-600 dark:text-gray-400">{user?.email}</span>
-            </SettingItem>
-
-            <div className="pt-4">
-              <Button
-                variant="outline"
-                className="w-full text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
-                onClick={signOut}
-              >
-                Sign Out
-              </Button>
-            </div>
           </CardContent>
         </Card>
 

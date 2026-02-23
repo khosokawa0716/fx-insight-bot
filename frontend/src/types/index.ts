@@ -60,6 +60,59 @@ export interface NewsListResponse {
   news: NewsItem[]
 }
 
+// Monthly Summary types
+export interface MonthlySummaryData {
+  total_trades: number
+  win_count: number
+  loss_count: number
+  win_rate: number
+  skip_count: number
+  actual_pnl: number
+  baseline_pnl: number
+  ai_advantage: number
+  lot_stats: Record<string, { count: number; win: number; loss: number; pnl: number }>
+}
+
+export interface MonthlySummaryResponse {
+  status: 'success' | 'error'
+  period: string
+  data: MonthlySummaryData
+}
+
+// Trade History types
+export type TradeAction = 'BUY' | 'SELL' | 'HOLD' | 'SKIP'
+
+export interface TradeHistoryItem {
+  trade_id: string
+  symbol: string
+  side: string
+  used_lot: number
+  reason: string
+  created_at: string
+  dry_run: boolean
+  entry_price?: number | null
+  stop_loss?: number | null
+  take_profit?: number | null
+  order_id?: string | null
+  status?: string | null
+  actual_pnl?: number | null
+  baseline_pnl?: number | null
+  ai_sentiment?: number | null
+  ai_impact?: number | null
+  ai_news_count?: number | null
+  lot_reason?: string | null
+  buy_score?: number | null
+  sell_score?: number | null
+  confidence?: number | null
+  skip_reason?: string | null
+}
+
+export interface TradeHistoryResponse {
+  status: 'success' | 'error'
+  count: number
+  items: TradeHistoryItem[]
+}
+
 // Signal types
 export interface SignalItem {
   news_id: string

@@ -8,7 +8,7 @@ Phase 4: 自動売買機能
 import logging
 from typing import List, Literal, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from src.services.gmo_client import (
@@ -17,6 +17,7 @@ from src.services.gmo_client import (
     AuthenticationError,
     OrderError,
 )
+from src.config import settings
 from src.services.trade_executor import TradeExecutor, TradeConfig, TradeResult
 from src.services.risk_manager import RiskManager, RiskConfig
 from src.services.technical_analyzer import TechnicalAnalyzer
@@ -162,6 +163,44 @@ class MonthlySummaryResponse(BaseModel):
     status: str
     period: str
     data: dict
+
+
+class TradeHistoryItem(BaseModel):
+    """取引履歴1件（BUY/SELL/HOLD/SKIP 共通）"""
+
+    trade_id: str
+    symbol: str
+    side: str
+    used_lot: int = 0
+    reason: str = ""
+    created_at: str
+    dry_run: bool = False
+    # BUY/SELL のみ
+    entry_price: Optional[float] = None
+    stop_loss: Optional[float] = None
+    take_profit: Optional[float] = None
+    order_id: Optional[str] = None
+    status: Optional[str] = None
+    actual_pnl: Optional[float] = None
+    baseline_pnl: Optional[float] = None
+    # AI判断（BUY/SELL/SKIP のみ）
+    ai_sentiment: Optional[float] = None
+    ai_impact: Optional[float] = None
+    ai_news_count: Optional[int] = None
+    lot_reason: Optional[str] = None
+    # テクニカルスコア（全アクション）
+    buy_score: Optional[int] = None
+    sell_score: Optional[int] = None
+    confidence: Optional[float] = None
+    skip_reason: Optional[str] = None
+
+
+class TradeHistoryResponse(BaseModel):
+    """取引履歴レスポンス"""
+
+    status: str
+    count: int
+    items: List[TradeHistoryItem]
 
 
 class CancelOrderRequest(BaseModel):
@@ -496,7 +535,7 @@ async def get_monthly_summary():
         from google.cloud import firestore as fs
         from google.cloud.firestore_v1.base_query import FieldFilter
 
-        db = fs.Client()
+        db = fs.Client(database=settings.firestore_database_id)
         now = datetime.now()
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         period = now.strftime("%Y-%m")
@@ -570,4 +609,116 @@ async def get_monthly_summary():
 
     except Exception as e:
         logger.error(f"Monthly summary error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/history", response_model=TradeHistoryResponse)
+async def get_trade_history(
+    limit: int = Query(default=50, ge=1, le=200, description="取得件数"),
+    symbol: Optional[str] = Query(default=None, description="通貨ペアフィルタ（例: USD_JPY）"),
+    action: Optional[str] = Query(default=None, description="アクションフィルタ（BUY/SELL/HOLD/SKIP）"),
+):
+    """
+    取引履歴を取得
+
+    Firestoreの trades コレクションから最新N件を返す。
+    BUY/SELL/HOLD/SKIP 全てのレコードを含む。
+
+    Args:
+        limit: 取得件数（デフォルト50、最大200）
+        symbol: 通貨ペアフィルタ（省略時は全通貨ペア）
+        action: アクションフィルタ（省略時は全アクション）
+
+    Returns:
+        取引履歴一覧
+    """
+    try:
+        from google.cloud import firestore as fs
+        from google.cloud.firestore_v1.base_query import FieldFilter
+
+        db = fs.Client(database=settings.firestore_database_id)
+        trades_ref = db.collection("trades")
+
+        # symbol フィルタ（Firestore側）
+        if symbol:
+            query = trades_ref.where(filter=FieldFilter("symbol", "==", symbol))
+        else:
+            query = trades_ref
+
+        # created_at 降順
+        query = query.order_by("created_at", direction=fs.Query.DESCENDING)
+
+        # action フィルタがある場合は多めに取得してPython側でフィルタ
+        fetch_limit = limit if not action else min(limit * 4, 500)
+        query = query.limit(fetch_limit)
+
+        items = []
+        for doc in query.stream():
+            trade = doc.to_dict()
+
+            side = trade.get("side", "")
+            skip_reason = trade.get("skip_reason")
+
+            # action フィルタ（Python側）
+            if action:
+                action_upper = action.upper()
+                if action_upper == "BUY":
+                    if side != "BUY" or skip_reason:
+                        continue
+                elif action_upper == "SELL":
+                    if side != "SELL" or skip_reason:
+                        continue
+                elif action_upper == "HOLD":
+                    if side != "HOLD":
+                        continue
+                elif action_upper == "SKIP":
+                    if not skip_reason:
+                        continue
+
+            # created_at を ISO 文字列に変換
+            created_at = trade.get("created_at")
+            if hasattr(created_at, "isoformat"):
+                created_at_str = created_at.isoformat()
+            else:
+                created_at_str = str(created_at) if created_at else ""
+
+            ai_decision = trade.get("ai_decision") or {}
+            tech_score = trade.get("technical_score") or {}
+
+            items.append(TradeHistoryItem(
+                trade_id=trade.get("trade_id", doc.id),
+                symbol=trade.get("symbol", ""),
+                side=side,
+                used_lot=trade.get("used_lot", 0),
+                reason=trade.get("reason", ""),
+                created_at=created_at_str,
+                dry_run=trade.get("dry_run", False),
+                entry_price=trade.get("entry_price"),
+                stop_loss=trade.get("stop_loss"),
+                take_profit=trade.get("take_profit"),
+                order_id=trade.get("order_id"),
+                status=trade.get("status"),
+                actual_pnl=trade.get("actual_pnl"),
+                baseline_pnl=trade.get("baseline_pnl"),
+                ai_sentiment=ai_decision.get("avg_sentiment"),
+                ai_impact=ai_decision.get("avg_impact"),
+                ai_news_count=ai_decision.get("news_count"),
+                lot_reason=ai_decision.get("lot_reason"),
+                buy_score=tech_score.get("buy_score"),
+                sell_score=tech_score.get("sell_score"),
+                confidence=tech_score.get("confidence"),
+                skip_reason=skip_reason,
+            ))
+
+            if len(items) >= limit:
+                break
+
+        return TradeHistoryResponse(
+            status="success",
+            count=len(items),
+            items=items,
+        )
+
+    except Exception as e:
+        logger.error(f"Trade history error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -193,15 +193,22 @@ class TradeExecutor:
             f"Signal for {symbol}: {signal} (confidence: {confidence:.2%})"
         )
 
-        # 2. hold → 終了
+        # 2. hold → 終了（Firestoreに記録）
         if signal == "hold":
+            now = datetime.now()
+            self._save_hold_log(
+                symbol=symbol,
+                signal_data=signal_data,
+                reason=reason,
+                timestamp=now,
+            )
             return TradeResult(
                 success=True,
                 action="HOLD",
                 symbol=symbol,
                 size=0,
                 reason=reason,
-                timestamp=datetime.now(),
+                timestamp=now,
                 dry_run=self.gmo_client.dry_run,
             )
 
@@ -407,6 +414,56 @@ class TradeExecutor:
                 timestamp=datetime.now(),
                 dry_run=self.gmo_client.dry_run,
             )
+
+    def _save_hold_log(
+        self,
+        symbol: str,
+        signal_data: Dict,
+        reason: str,
+        timestamp: datetime,
+    ) -> Optional[str]:
+        """
+        HOLD判定をFirestoreに保存
+
+        Args:
+            symbol: 通貨ペア
+            signal_data: シグナルデータ（テクニカルスコア含む）
+            reason: HOLD理由
+            timestamp: 判定時刻
+
+        Returns:
+            ドキュメントID
+        """
+        if not self.db:
+            return None
+
+        try:
+            doc_id = f"hold_{timestamp.strftime('%Y%m%d_%H%M%S')}_{symbol}"
+
+            doc_data = {
+                "trade_id": doc_id,
+                "symbol": symbol,
+                "side": "HOLD",
+                "used_lot": 0,
+                "skip_reason": "TECHNICAL_HOLD",
+                "technical_score": {
+                    "buy_score": signal_data.get("buy_score", 0),
+                    "sell_score": signal_data.get("sell_score", 0),
+                    "confidence": signal_data.get("confidence", 0.0),
+                },
+                "reason": reason,
+                "rule_version": signal_data.get("rule_version", "v2.0"),
+                "created_at": timestamp,
+                "dry_run": self.gmo_client.dry_run,
+            }
+
+            self.db.collection("trades").document(doc_id).set(doc_data)
+            logger.info(f"Hold log saved: {doc_id}")
+            return doc_id
+
+        except Exception as e:
+            logger.error(f"Failed to save hold log: {e}")
+            return None
 
     def _save_skip_log(
         self,

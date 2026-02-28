@@ -193,7 +193,7 @@ class TradeExecutor:
             f"Signal for {symbol}: {signal} (confidence: {confidence:.2%})"
         )
 
-        # 2. hold → 終了（Firestoreに記録）
+        # 2. hold → ログ記録後、テスト用にBUY 100通貨で取引
         if signal == "hold":
             now = datetime.now()
             self._save_hold_log(
@@ -202,48 +202,37 @@ class TradeExecutor:
                 reason=reason,
                 timestamp=now,
             )
-            return TradeResult(
-                success=True,
-                action="HOLD",
+            # TODO(テスト用): HOLDでも最低ロット(100通貨)でBUY取引。テスト完了後に削除
+            signal = "buy"
+            lot = 100
+            lot_reason = "TEST: force min lot (HOLD override)"
+        else:
+            # 3. AIロット決定
+            lot, lot_reason = self.rule_engine.determine_lot(signal, news_summary)
+
+            # AI決定をFirestoreに保存
+            self.rule_engine.save_daily_ai_decision(
                 symbol=symbol,
-                size=0,
-                reason=reason,
-                timestamp=now,
-                dry_run=self.gmo_client.dry_run,
-            )
-
-        # 3. AIロット決定
-        lot, lot_reason = self.rule_engine.determine_lot(signal, news_summary)
-
-        # AI決定をFirestoreに保存
-        self.rule_engine.save_daily_ai_decision(
-            symbol=symbol,
-            signal=signal,
-            lot=lot,
-            lot_reason=lot_reason,
-            news_summary=news_summary,
-        )
-
-        logger.info(f"AI lot decision: {lot} ({lot_reason})")
-
-        # lot = 0 → スキップ（ログ記録）
-        if lot == 0:
-            self._save_skip_log(
-                symbol=symbol,
-                side=signal.upper(),
-                signal_data=signal_data,
+                signal=signal,
+                lot=lot,
                 lot_reason=lot_reason,
                 news_summary=news_summary,
             )
-            return TradeResult(
-                success=True,
-                action="SKIP",
-                symbol=symbol,
-                size=0,
-                reason=f"AI skip: {lot_reason}",
-                timestamp=datetime.now(),
-                dry_run=self.gmo_client.dry_run,
-            )
+
+            logger.info(f"AI lot decision: {lot} ({lot_reason})")
+
+            # lot = 0 → スキップログ記録後、テスト用に100通貨で取引
+            if lot == 0:
+                self._save_skip_log(
+                    symbol=symbol,
+                    side=signal.upper(),
+                    signal_data=signal_data,
+                    lot_reason=lot_reason,
+                    news_summary=news_summary,
+                )
+                # TODO(テスト用): lot=0でも最低ロット(100通貨)で取引。テスト完了後に削除
+                lot = 100
+                lot_reason = f"TEST: force min lot ({lot_reason})"
 
         # 4. リスクチェック
         if self.risk_manager:

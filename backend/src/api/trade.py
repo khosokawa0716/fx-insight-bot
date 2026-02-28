@@ -455,7 +455,10 @@ async def execute_signals(request: ExecuteSignalsRequest):
 
         # リスクマネージャー初期化
         risk_config = RiskConfig()
-        risk_manager = RiskManager(config=risk_config)
+        risk_manager = RiskManager(
+            config=risk_config,
+            database_id=settings.firestore_database_id,
+        )
 
         # トレード設定（v2.0: USD_JPY固定）
         trade_config = TradeConfig(
@@ -468,6 +471,7 @@ async def execute_signals(request: ExecuteSignalsRequest):
             rule_engine=rule_engine,
             config=trade_config,
             risk_manager=risk_manager,
+            database_id=settings.firestore_database_id,
         )
 
         # シグナル実行

@@ -250,17 +250,24 @@ class RiskManager:
 
         try:
             trades_ref = self.db.collection("trades")
+            # HOLD/SKIP ログは除外し、実際に注文を発注した BUY/SELL のみを対象にする
+            # （複合インデックス不要のため Python 側でフィルタする）
             query = (
                 trades_ref
                 .order_by("created_at", direction=firestore.Query.DESCENDING)
-                .limit(1)
+                .limit(20)
             )
 
-            docs = list(query.stream())
-            if not docs:
+            last_trade = None
+            for doc in query.stream():
+                trade = doc.to_dict()
+                if trade.get("side") in ("BUY", "SELL"):
+                    last_trade = trade
+                    break
+
+            if not last_trade:
                 return True, None
 
-            last_trade = docs[0].to_dict()
             last_trade_time = last_trade.get("created_at")
 
             if not last_trade_time:

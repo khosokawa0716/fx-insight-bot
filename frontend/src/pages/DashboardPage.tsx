@@ -10,11 +10,11 @@ import { cn } from '@/lib/utils'
 import type { TradeHistoryItem } from '@/types'
 
 function actionBadge(item: TradeHistoryItem) {
-  if (item.skip_reason) {
-    return <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">SKIP</span>
-  }
   if (item.side === 'HOLD') {
     return <span className="px-2 py-1 rounded text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300">HOLD</span>
+  }
+  if (item.skip_reason) {
+    return <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">SKIP</span>
   }
   if (item.side === 'BUY') {
     return <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300">BUY</span>

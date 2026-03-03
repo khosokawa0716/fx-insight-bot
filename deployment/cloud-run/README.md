@@ -23,11 +23,13 @@
 ### 1. GCP プロジェクトの準備
 
 ```bash
+# ※ シェル変数を必ず設定してからデプロイコマンドを実行すること
+# （未設定のままだと Cloud Run の環境変数が空になり Firestore が RESOURCE_PROJECT_INVALID で失敗する）
 export GCP_PROJECT_ID="fx-insight-bot-prod"
 export GCP_REGION="asia-northeast1"
-export SERVICE_ACCOUNT="fx-insight-bot-sa@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
+export SERVICE_ACCOUNT="fx-insight-bot-sa@fx-insight-bot-prod.iam.gserviceaccount.com"
 
-gcloud config set project ${GCP_PROJECT_ID}
+gcloud config set project fx-insight-bot-prod
 ```
 
 ### 2. 必要なAPIの有効化
@@ -203,11 +205,19 @@ curl ${SERVICE_A_URL}/api/v1/trade/history
 ## 📊 モニタリング
 
 ```bash
-# Service A のログ
-gcloud run services logs tail fx-insight-bot --region=${GCP_REGION}
+# Service A のログ（beta が必要）
+gcloud beta run services logs tail fx-insight-bot --region=${GCP_REGION}
 
-# Service B のログ
-gcloud run services logs tail fx-insight-bot-exec --region=${GCP_REGION}
+# Service B のログ（beta が必要）
+gcloud beta run services logs tail fx-insight-bot-exec --region=${GCP_REGION}
+
+# gcloud logging read を使う場合（安定版・時間フィルタが使いやすい）
+gcloud logging read \
+  'resource.type="cloud_run_revision" AND resource.labels.service_name="fx-insight-bot-exec"' \
+  --project=${GCP_PROJECT_ID} \
+  --limit=100 \
+  --format="value(timestamp, textPayload)" \
+  --freshness=48h
 ```
 
 ---

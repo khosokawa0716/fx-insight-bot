@@ -51,7 +51,10 @@ gcloud services enable cloudscheduler.googleapis.com
 
 ### 4. Cloud Run デプロイ
 
+> **⚠️ 注意（2026-02-27 更新）**: 現在は2サービス構成に移行済み。最新のデプロイコマンドは `README.md` または `docs/progress/2026-02-27_service_split_auth.md` を参照。
+
 ```bash
+# 旧コマンド（1サービス構成 / 現在は非推奨）
 gcloud run deploy fx-insight-bot \
   --source backend/ \
   --set-env-vars ENVIRONMENT=production \

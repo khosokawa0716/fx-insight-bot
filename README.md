@@ -198,13 +198,39 @@ python scripts/backtest.py \
 
 ## 🚀 デプロイ
 
-### Google Cloud Platformへのデプロイ
-```bash
-# GCPプロジェクトの設定
-./scripts/setup_gcp.sh
+### Google Cloud Platform（2サービス構成）
 
-# アプリケーションのデプロイ
-./scripts/deploy.sh production
+**Service A（読み取り専用 / Firebase Hosting 経由）:**
+```bash
+GCP_PROJECT_ID=fx-insight-bot-prod gcloud run deploy fx-insight-bot \
+  --source backend/ \
+  --region asia-northeast1 \
+  --project fx-insight-bot-prod \
+  --allow-unauthenticated \
+  --set-secrets "GMO_API_KEY=gmo-api-key:latest,GMO_API_SECRET=gmo-api-secret:latest" \
+  --set-env-vars "ENVIRONMENT=production,GCP_PROJECT_ID=fx-insight-bot-prod,FIRESTORE_DATABASE_ID=fx-insight-bot-db"
+```
+
+**Service B（取引実行専用 / Cloud Scheduler のみ）:**
+```bash
+GCP_PROJECT_ID=fx-insight-bot-prod gcloud run deploy fx-insight-bot-exec \
+  --source backend/ \
+  --region asia-northeast1 \
+  --project fx-insight-bot-prod \
+  --no-allow-unauthenticated \
+  --set-secrets "GMO_API_KEY=gmo-api-key:latest,GMO_API_SECRET=gmo-api-secret:latest" \
+  --set-env-vars "ENVIRONMENT=production,GCP_PROJECT_ID=fx-insight-bot-prod,FIRESTORE_DATABASE_ID=fx-insight-bot-db" \
+  --memory 512Mi \
+  --concurrency 1 \
+  --max-instances 2 \
+  --timeout 300
+```
+
+> **注意**: `GCP_PROJECT_ID` をシェル変数かつ `--set-env-vars` の両方に指定する（未設定だと `RESOURCE_PROJECT_INVALID` エラー）。
+
+**フロントエンド（Firebase Hosting）:**
+```bash
+cd frontend && npm run build && firebase deploy --only hosting
 ```
 
 ## 📖 ドキュメント

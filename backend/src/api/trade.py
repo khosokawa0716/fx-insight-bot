@@ -700,7 +700,7 @@ async def get_trade_history(
                 entry_price=trade.get("entry_price"),
                 stop_loss=trade.get("stop_loss"),
                 take_profit=trade.get("take_profit"),
-                order_id=trade.get("order_id"),
+                order_id=str(trade["order_id"]) if trade.get("order_id") is not None else None,
                 status=trade.get("status"),
                 actual_pnl=trade.get("actual_pnl"),
                 baseline_pnl=trade.get("baseline_pnl"),

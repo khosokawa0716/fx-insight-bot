@@ -788,6 +788,126 @@ class TradeExecutor:
             logger.error(f"Failed to update trade settlement: {e}")
             return False
 
+    def settle_open_trades(self) -> List[Dict]:
+        """
+        Firestore の open トレードを確認し、決済済みのものを更新する
+
+        フロー:
+          1. Firestore から status="open" の BUY/SELL トレードを取得
+          2. 各トレードの order_id で /v1/executions を呼び OPEN execution の positionId を取得
+          3. /v1/latestExecutions から settleType="CLOSE" の約定を取得
+          4. positionId が一致する CLOSE execution があれば update_trade_settlement() を呼ぶ
+
+        Returns:
+            更新結果のリスト [{"trade_id": ..., "status": "settled"|"still_open"|"error", ...}]
+        """
+        if not self.db:
+            logger.warning("settle_open_trades: Firestore not available")
+            return []
+
+        results = []
+
+        # 1. Firestore から open トレードを取得
+        try:
+            query = (
+                self.db.collection("trades")
+                .where("status", "==", "open")
+            )
+            open_docs = list(query.stream())
+        except Exception as e:
+            logger.error(f"settle_open_trades: Firestore query failed: {e}")
+            return [{"status": "error", "reason": str(e)}]
+
+        if not open_docs:
+            logger.info("settle_open_trades: no open trades found")
+            return []
+
+        # 2. シンボルごとに latestExecutions を1回だけ取得してキャッシュ
+        latest_by_symbol: Dict[str, List[Dict]] = {}
+
+        for doc in open_docs:
+            trade = doc.to_dict()
+            trade_id = trade.get("trade_id", doc.id)
+            symbol = trade.get("symbol", "USD_JPY")
+            order_id = trade.get("order_id")
+            side = trade.get("side", "")
+
+            if side not in ("BUY", "SELL"):
+                continue
+
+            if not order_id:
+                logger.warning(f"settle_open_trades: no order_id for {trade_id}, skipping")
+                results.append({"trade_id": trade_id, "status": "skipped", "reason": "no order_id"})
+                continue
+
+            try:
+                # STEP A: order_id → positionId（OPEN execution から取得）
+                entry_executions = self.gmo_client.get_executions(int(order_id))
+                open_exec = next(
+                    (e for e in entry_executions if e.get("settleType") == "OPEN"),
+                    None,
+                )
+                if not open_exec:
+                    logger.info(f"settle_open_trades: {trade_id} not yet filled (no OPEN execution)")
+                    results.append({"trade_id": trade_id, "status": "still_open", "reason": "entry not filled"})
+                    continue
+
+                position_id = open_exec.get("positionId")
+                if not position_id:
+                    logger.warning(f"settle_open_trades: {trade_id} has no positionId in OPEN execution")
+                    results.append({"trade_id": trade_id, "status": "error", "reason": "no positionId"})
+                    continue
+
+                # STEP B: latestExecutions（シンボル単位でキャッシュ）
+                if symbol not in latest_by_symbol:
+                    latest_by_symbol[symbol] = self.gmo_client.get_latest_executions(symbol)
+
+                close_exec = next(
+                    (
+                        e for e in latest_by_symbol[symbol]
+                        if e.get("settleType") == "CLOSE"
+                        and e.get("positionId") == position_id
+                    ),
+                    None,
+                )
+
+                if not close_exec:
+                    logger.info(f"settle_open_trades: {trade_id} (positionId={position_id}) still open or closed >24h ago")
+                    results.append({"trade_id": trade_id, "status": "still_open", "reason": "no CLOSE execution in last 24h"})
+                    continue
+
+                # STEP C: 決済情報を取得して Firestore 更新
+                exit_price = float(close_exec["price"])
+                actual_pnl = float(close_exec["lossGain"])
+                entry_price = trade.get("entry_price", 0.0)
+
+                success = self.update_trade_settlement(
+                    trade_id=trade_id,
+                    exit_price=exit_price,
+                    actual_pnl=actual_pnl,
+                    side=side,
+                    entry_price=entry_price,
+                )
+
+                if success:
+                    status_str = "WIN" if actual_pnl >= 0 else "LOSS"
+                    logger.info(f"settle_open_trades: {trade_id} settled → {status_str} actual_pnl={actual_pnl:.0f}")
+                    results.append({
+                        "trade_id": trade_id,
+                        "status": "settled",
+                        "result": status_str,
+                        "actual_pnl": actual_pnl,
+                        "exit_price": exit_price,
+                    })
+                else:
+                    results.append({"trade_id": trade_id, "status": "error", "reason": "Firestore update failed"})
+
+            except Exception as e:
+                logger.error(f"settle_open_trades: error processing {trade_id}: {e}")
+                results.append({"trade_id": trade_id, "status": "error", "reason": str(e)})
+
+        return results
+
     def get_current_positions(self) -> Dict[str, List[Dict]]:
         """
         現在のポジション状況を取得

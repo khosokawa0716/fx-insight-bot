@@ -1139,6 +1139,62 @@ class GMOCoinClient:
         ]
 
 
+    def get_executions(self, order_id: int) -> List[Dict]:
+        """
+        約定情報を取得（orderId 指定）
+
+        エントリー注文の orderId を渡すと、その注文に紐づく約定一覧を返す。
+        OPEN execution から positionId を取得するために使用。
+
+        Args:
+            order_id: 注文ID（Firestore の order_id フィールド）
+
+        Returns:
+            約定リスト。各要素:
+            {
+                "executionId": 92123912,
+                "orderId": 223456789,
+                "positionId": 2234567,
+                "symbol": "USD_JPY",
+                "side": "SELL",
+                "settleType": "OPEN" | "CLOSE",
+                "size": "1000",
+                "price": "141.251",
+                "lossGain": "15730",
+                "fee": "-30",
+                "timestamp": "2020-11-24T21:27:04.764Z"
+            }
+        """
+        endpoint = f"{self.PRIVATE_ENDPOINT}/executions"
+        params = {"orderId": order_id}
+
+        logger.info(f"Fetching executions: orderId={order_id}")
+
+        response = self._request("GET", endpoint, params=params, private=True)
+        return response.get("data", {}).get("list", [])
+
+    def get_latest_executions(self, symbol: str, count: int = 100) -> List[Dict]:
+        """
+        最新の約定一覧を取得（直近24時間・最大100件）
+
+        CLOSE execution を検索して決済済みポジションの損益・決済価格を取得するために使用。
+
+        Args:
+            symbol: 通貨ペア（例: USD_JPY）
+            count: 取得件数（最大100）
+
+        Returns:
+            約定リスト（get_executions と同じ構造）
+        """
+        endpoint = f"{self.PRIVATE_ENDPOINT}/latestExecutions"
+        params = {"symbol": symbol, "count": count}
+
+        logger.info(f"Fetching latest executions: symbol={symbol} count={count}")
+
+        response = self._request("GET", endpoint, params=params, private=True)
+        return response.get("data", {}).get("list", [])
+
+
 # ============================================================
 # ヘルパー関数
 # ============================================================

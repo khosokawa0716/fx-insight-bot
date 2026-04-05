@@ -550,6 +550,7 @@ async def get_monthly_summary():
 
         total_actual_pnl = 0.0
         total_baseline_pnl = 0.0
+        trade_count = 0   # BUY/SELL の発注数（open/WIN/LOSS 問わず）
         win_count = 0
         loss_count = 0
         skip_count = 0
@@ -557,18 +558,26 @@ async def get_monthly_summary():
 
         for doc in query.stream():
             trade = doc.to_dict()
+            side = trade.get("side", "")
 
-            # AI見送りログ
+            # HOLD/SKIP ログ（skip_reason あり）はスキップカウントのみ
             if trade.get("skip_reason"):
                 skip_count += 1
                 continue
+
+            # BUY/SELL 以外（想定外レコード）は無視
+            if side not in ("BUY", "SELL"):
+                continue
+
+            # 発注件数は open/WIN/LOSS 問わずカウント
+            trade_count += 1
 
             actual_pnl = trade.get("actual_pnl")
             baseline_pnl = trade.get("baseline_pnl")
             used_lot = trade.get("used_lot", 0)
             status = trade.get("status", "")
 
-            # 決済済みのみ集計
+            # 決済済み（WIN/LOSS）のみ損益・勝敗を集計
             if actual_pnl is not None:
                 total_actual_pnl += actual_pnl
                 if status == "WIN":
@@ -591,8 +600,10 @@ async def get_monthly_summary():
             if actual_pnl is not None:
                 lot_stats[lot_key]["pnl"] += actual_pnl
 
-        total_trades = win_count + loss_count
-        win_rate = (win_count / total_trades * 100) if total_trades > 0 else 0.0
+        total_trades = trade_count  # open 含む発注総数
+        # 勝率は決済済み（WIN+LOSS）のみで計算
+        settled = win_count + loss_count
+        win_rate = (win_count / settled * 100) if settled > 0 else 0.0
         ai_advantage = total_actual_pnl - total_baseline_pnl
 
         return MonthlySummaryResponse(
@@ -613,6 +624,58 @@ async def get_monthly_summary():
 
     except Exception as e:
         logger.error(f"Monthly summary error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class SettleCheckResponse(BaseModel):
+    """決済チェックレスポンス"""
+    status: str
+    checked: int
+    settled: int
+    results: List[dict]
+
+
+@router.post("/settle-check", response_model=SettleCheckResponse)
+async def settle_check():
+    """
+    open トレードの決済状況を確認し Firestore を更新する
+
+    Firestore の status="open" な BUY/SELL トレードを全件確認し、
+    GMO の約定履歴（latestExecutions）に CLOSE execution があれば
+    actual_pnl / baseline_pnl / status(WIN|LOSS) を書き込む。
+
+    Cloud Scheduler から毎日 8:30 JST に呼ばれる。
+    手動テストも可能（curl で直接呼ぶ）。
+    """
+    try:
+        gmo_client = GMOCoinClient()
+        technical_analyzer = TechnicalAnalyzer(gmo_client)
+        rule_engine = RuleEngine(technical_analyzer=technical_analyzer)
+        trade_config = TradeConfig(symbols=["USD_JPY"])
+
+        executor = TradeExecutor(
+            gmo_client=gmo_client,
+            rule_engine=rule_engine,
+            config=trade_config,
+            database_id=settings.firestore_database_id,
+        )
+
+        results = executor.settle_open_trades()
+
+        settled = sum(1 for r in results if r.get("status") == "settled")
+
+        return SettleCheckResponse(
+            status="success",
+            checked=len(results),
+            settled=settled,
+            results=results,
+        )
+
+    except AuthenticationError as e:
+        logger.error(f"settle-check auth error: {e}")
+        raise HTTPException(status_code=401, detail=str(e))
+    except Exception as e:
+        logger.error(f"settle-check error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

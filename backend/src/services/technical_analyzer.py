@@ -278,20 +278,22 @@ class TechnicalAnalyzer:
 
         Returns:
             "bullish" or "bearish" or "neutral"
+
+        Note:
+            v2.1変更（2026-04-12）: クロスの瞬間だけでなく、MACDヒストグラムが
+            プラス圏にある間は "bullish" を維持するよう変更。
+            旧実装ではクロスの瞬間（1時間足）しか bullish にならず、実行タイミングと
+            重なる確率が低く取引機会が月1回程度に留まっていた。
         """
-        # 強気シグナル
-        if macd_data["bullish_crossover"] or (
-            rsi_data["oversold"] and macd_data["macd_histogram"] > 0
-        ):
+        # 強気: MACDヒストグラムがプラス圏（短期モメンタムが上向き）
+        if macd_data["macd_histogram"] > 0:
             return "bullish"
 
-        # 弱気シグナル
-        if macd_data["bearish_crossover"] or (
-            rsi_data["overbought"] and macd_data["macd_histogram"] < 0
-        ):
+        # 弱気: MACDヒストグラムがマイナス圏（短期モメンタムが下向き）
+        if macd_data["macd_histogram"] < 0:
             return "bearish"
 
-        # 中立
+        # 中立（ヒストグラムがちょうど0のとき）
         return "neutral"
 
     def get_multiple_indicators(

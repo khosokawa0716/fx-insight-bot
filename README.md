@@ -51,8 +51,8 @@ AI駆動のニュース分析とテクニカル指標を組み合わせたFX自�
 
 ### 1. リポジトリのクローン
 ```bash
-git clone https://github.com/yourusername/fx-auto-trading.git
-cd fx-auto-trading
+git clone https://github.com/khosokawa0716/fx-insight-bot.git
+cd fx-insight-bot
 ```
 
 ### 2. 環境変数の設定

@@ -10,6 +10,7 @@ import { formatCurrency } from '../lib/format'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Header, Footer } from '@/components/layout'
+import { PerformanceChart } from '@/components/PerformanceChart'
 import { cn } from '@/lib/utils'
 import type { TradeHistoryItem, NewsItem } from '@/types'
 
@@ -460,6 +461,7 @@ export function DashboardPage() {
   const { data: health, isLoading: healthLoading, error: healthError } = useHealth()
   const { data: tradeHistory = [], isLoading: historyLoading } = useTradeHistory(30)
   const { data: tradeHistoryFiltered = [] } = useTradeHistory(30, true)
+  const { data: tradeHistoryChart = [] } = useTradeHistory(200, true)
   const { data: monthly } = useMonthlySummary()
   const { data: newsList = [], isLoading: newsLoading } = useNews(15)
 
@@ -600,7 +602,20 @@ export function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* ④ 月次サマリー */}
+          {/* ④ パフォーマンス推移 */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <BarChart2 className="h-4 w-4" />
+                パフォーマンス推移
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PerformanceChart items={tradeHistoryChart} />
+            </CardContent>
+          </Card>
+
+          {/* ⑤ 月次サマリー */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">

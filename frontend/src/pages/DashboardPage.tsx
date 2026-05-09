@@ -459,6 +459,7 @@ export function DashboardPage() {
   const { data: positions = [], isLoading: positionsLoading, error: positionsError } = usePositions()
   const { data: health, isLoading: healthLoading, error: healthError } = useHealth()
   const { data: tradeHistory = [], isLoading: historyLoading } = useTradeHistory(30)
+  const { data: tradeHistoryFiltered = [] } = useTradeHistory(30, true)
   const { data: monthly } = useMonthlySummary()
   const { data: newsList = [], isLoading: newsLoading } = useNews(15)
 
@@ -548,7 +549,7 @@ export function DashboardPage() {
                 <div className="text-center py-8 text-gray-400 text-sm">
                   <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2" />読み込み中...
                 </div>
-              ) : tradeHistory.length === 0 ? (
+              ) : tradeHistoryFiltered.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">履歴なし</div>
               ) : (
                 <div className="overflow-x-auto">
@@ -565,7 +566,7 @@ export function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                      {tradeHistory.map(item => (
+                      {tradeHistoryFiltered.map(item => (
                         <HistoryRow key={item.trade_id} item={item} />
                       ))}
                     </tbody>

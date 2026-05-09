@@ -25,9 +25,11 @@ export async function fetchMonthlySummary(): Promise<MonthlySummaryResponse> {
   return response
 }
 
-export async function fetchTradeHistory(limit = 50): Promise<TradeHistoryItem[]> {
+export async function fetchTradeHistory(limit = 50, excludeHold = false): Promise<TradeHistoryItem[]> {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (excludeHold) params.append('exclude_hold', 'true')
   const response = await apiClient.fetch<TradeHistoryResponse>(
-    `/api/v1/trade/history?limit=${limit}`
+    `/api/v1/trade/history?${params}`
   )
   if (response.status !== 'success') {
     throw new Error('Failed to fetch trade history')

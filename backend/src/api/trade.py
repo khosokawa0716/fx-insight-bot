@@ -684,6 +684,7 @@ async def get_trade_history(
     limit: int = Query(default=50, ge=1, le=200, description="取得件数"),
     symbol: Optional[str] = Query(default=None, description="通貨ペアフィルタ（例: USD_JPY）"),
     action: Optional[str] = Query(default=None, description="アクションフィルタ（BUY/SELL/HOLD/SKIP）"),
+    exclude_hold: bool = Query(default=False, description="HOLDを除外する"),
 ):
     """
     取引履歴を取得
@@ -715,8 +716,8 @@ async def get_trade_history(
         # created_at 降順
         query = query.order_by("created_at", direction=fs.Query.DESCENDING)
 
-        # action フィルタがある場合は多めに取得してPython側でフィルタ
-        fetch_limit = limit if not action else min(limit * 4, 500)
+        # action フィルタ or exclude_hold がある場合は多めに取得してPython側でフィルタ
+        fetch_limit = limit if (not action and not exclude_hold) else min(limit * 4, 500)
         query = query.limit(fetch_limit)
 
         items = []
@@ -725,6 +726,10 @@ async def get_trade_history(
 
             side = trade.get("side", "")
             skip_reason = trade.get("skip_reason")
+
+            # exclude_hold フィルタ
+            if exclude_hold and side == "HOLD":
+                continue
 
             # action フィルタ（Python側）
             if action:

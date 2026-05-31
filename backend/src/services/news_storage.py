@@ -99,8 +99,17 @@ class NewsStorage:
 
         return False
 
+    def _derive_signal(self, sentiment: int) -> str:
+        """sentiment の値から signal を導出"""
+        if sentiment >= 1:
+            return "BUY_CANDIDATE"
+        elif sentiment <= -1:
+            return "SELL_CANDIDATE"
+        else:
+            return "IGNORE"
+
     def _convert_to_news_event(
-        self, result: NewsAnalysisResult, news_id: str, signal: str = "IGNORE"
+        self, result: NewsAnalysisResult, news_id: str, signal: str | None = None
     ) -> NewsEvent:
         """
         NewsAnalysisResultをNewsEventに変換
@@ -113,6 +122,9 @@ class NewsStorage:
         Returns:
             NewsEventオブジェクト
         """
+        if signal is None:
+            signal = self._derive_signal(result.sentiment)
+
         # published_atは不明なので、analyzed_atを日本時間に変換して使用
         # 実際のニュースソースから取得できる場合は、そちらを優先すべき
         published_at = result.analyzed_at.astimezone(JST)

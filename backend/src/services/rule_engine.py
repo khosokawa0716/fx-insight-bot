@@ -355,10 +355,10 @@ class RuleEngine:
         news_summary: Dict,
     ) -> tuple[int, str]:
         """
-        AIロット決定（v2.0）
+        AIロット決定（v2.1）
 
-        テクニカル方向とニュースのsentiment/impactから
-        ロットサイズ（0/500/1000/1500通貨）を決定する。
+        avg_sentiment の絶対値を 0〜0.5 のスケールで 500〜1500 に線形マッピング。
+        シグナルと反対方向のsentimentは見送り（lot=0）。
 
         Args:
             signal: テクニカルシグナル ("buy" / "sell" / "hold")
@@ -366,35 +366,27 @@ class RuleEngine:
 
         Returns:
             (lot, lot_reason)
-            lot: 0, 500, 1000, or 1500
+            lot: 0, または 500〜1500（100刻み）
             lot_reason: 決定理由の文字列
         """
         sentiment = news_summary.get("avg_sentiment", 0.0)
-        impact = news_summary.get("avg_impact", 0.0)
-        count = news_summary.get("count", 0)
 
         if signal == "hold":
             return 0, "テクニカル=HOLD: 取引なし"
 
         if signal == "buy":
-            if sentiment > 0.5 and impact >= 3:
-                return 1500, f"ファンダが買いを強く支持 (sentiment={sentiment:.2f}, impact={impact:.1f})"
-            elif sentiment > 0:
-                return 1000, f"ファンダがやや買い支持 (sentiment={sentiment:.2f})"
-            elif count == 0 or sentiment == 0:
-                return 500, f"ファンダ中立 (sentiment={sentiment:.2f}, count={count})"
-            else:  # sentiment < 0
+            if sentiment < 0:
                 return 0, f"ファンダが買いに反対 (sentiment={sentiment:.2f}) → 見送り"
+            ratio = min(1.0, sentiment / 0.5)
+            lot = round((500 + ratio * 1000) / 100) * 100
+            return lot, f"ファンダ支持度に応じてロット決定 (sentiment={sentiment:.2f})"
 
         if signal == "sell":
-            if sentiment < -0.5 and impact >= 3:
-                return 1500, f"ファンダが売りを強く支持 (sentiment={sentiment:.2f}, impact={impact:.1f})"
-            elif sentiment < 0:
-                return 1000, f"ファンダがやや売り支持 (sentiment={sentiment:.2f})"
-            elif count == 0 or sentiment == 0:
-                return 500, f"ファンダ中立 (sentiment={sentiment:.2f}, count={count})"
-            else:  # sentiment > 0
+            if sentiment > 0:
                 return 0, f"ファンダが売りに反対 (sentiment={sentiment:.2f}) → 見送り"
+            ratio = min(1.0, abs(sentiment) / 0.5)
+            lot = round((500 + ratio * 1000) / 100) * 100
+            return lot, f"ファンダ支持度に応じてロット決定 (sentiment={sentiment:.2f})"
 
         return 0, f"不明なシグナル: {signal}"
 

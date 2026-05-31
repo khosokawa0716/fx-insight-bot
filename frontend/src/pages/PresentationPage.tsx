@@ -39,8 +39,8 @@ const L = {
     scoringRules:    'Scoring Rules',
     scoringSub:      'buy / sell — 0 to 8 pts each',
     decisionLogic:   'Decision Logic',
-    lotSizing:       'AI Lot Sizing',
-    lotSizingSub:    'Dynamic lot control based on confidence',
+    lotSizing:       'AI Lot Sizing (v2.1)',
+    lotSizingSub:    'Linear scale 500–1,500 based on news sentiment alignment',
     lowConf:         'Low confidence',
     medConf:         'Medium confidence',
     highConf:        'High confidence',
@@ -88,8 +88,8 @@ const L = {
     scoringRules:    'スコアリングルール',
     scoringSub:      'buy / sell それぞれ 0〜8 点',
     decisionLogic:   '判定ロジック',
-    lotSizing:       'AIロット決定',
-    lotSizingSub:    '確信度に応じたロット動的制御',
+    lotSizing:       'AIロット決定 (v2.1)',
+    lotSizingSub:    'ニュース sentiment の一致度を 500〜1,500 に線形マッピング',
     lowConf:         '確信度 低',
     medConf:         '確信度 中',
     highConf:        '確信度 高',
@@ -422,7 +422,7 @@ const TRADE_STEPS = [
   { en: 'Fetch recent news (impact ≥ 3)',   ja: '直近24hの高影響ニュースを取得' },
   { en: 'Score: buy_score & sell_score (0–8)', ja: 'テクニカル+ニュースでスコアリング' },
   { en: 'Signal: BUY / SELL / HOLD',        ja: 'score ≥ 4 でシグナル発行' },
-  { en: 'AI determines lot size (0–1,500)', ja: '確信度に応じてロット決定' },
+  { en: 'AI lot sizing: 500–1,500 linear by sentiment', ja: 'sentimentの一致度で500〜1,500を線形決定（100刻み）' },
   { en: 'Risk checks → IFDOCO order',       ja: 'リスクチェック通過後にIFDOCO注文発行' },
 ]
 
@@ -620,17 +620,26 @@ function SignalSection() {
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm">
               <h3 className="font-bold text-gray-900 dark:text-white mb-1">{l.lotSizing}</h3>
               <p className="text-xs text-gray-400 mb-5">{l.lotSizingSub}</p>
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2.5">
                 {[
-                  { confKey: 'lowConf',  lot: `0 (${l.lotSkip})`, cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' },
-                  { confKey: 'medConf',  lot: '500 / 1,000',       cls: 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300' },
-                  { confKey: 'highConf', lot: '1,500',              cls: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' },
-                ].map(({ confKey, lot, cls }) => (
-                  <div key={confKey} className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600 dark:text-gray-300">{l[confKey as keyof typeof l]}</span>
-                    <span className={cn('px-3 py-1 rounded-full text-xs font-semibold', cls)}>{lot} units</span>
+                  { label: lang === 'en' ? 'Opposing sentiment' : 'シグナルと反対方向',  lot: `0 (${l.lotSkip})`, cls: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400', bar: 0 },
+                  { label: lang === 'en' ? '|sentiment| = 0  (neutral)'  : '|sentiment| = 0（中立）',     lot: '500',   cls: 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300', bar: 10 },
+                  { label: lang === 'en' ? '|sentiment| = 0.25'          : '|sentiment| = 0.25',          lot: '1,000', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200', bar: 50 },
+                  { label: lang === 'en' ? '|sentiment| ≥ 0.5 (strong)'  : '|sentiment| ≥ 0.5（強い一致）', lot: '1,500', cls: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300', bar: 100 },
+                ].map(({ label, lot, cls, bar }) => (
+                  <div key={label}>
+                    <div className="flex justify-between items-center mb-0.5">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">{label}</span>
+                      <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-semibold', cls)}>{lot}</span>
+                    </div>
+                    <div className="h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-400 rounded-full" style={{ width: `${bar}%` }} />
+                    </div>
                   </div>
                 ))}
+                <p className="text-xs text-gray-400 mt-1">
+                  {lang === 'en' ? '100-unit increments · lot = 500 + min(1, |sentiment| / 0.5) × 1,000' : '100通貨刻み · lot = 500 + min(1, |sentiment| / 0.5) × 1,000'}
+                </p>
               </div>
             </div>
           </div>
@@ -758,12 +767,24 @@ const CHALLENGES = [
     ja: '取引頻度が低い（月1回程度）',
     problemEn: 'MACD crossover events are rare. Setting score ≥ 4 without backtesting was too conservative.',
     problemJa: 'MACDクロスオーバーは稀なイベント。バックテストなしで閾値を設定したため保守的すぎた。',
-    solutionEn: 'Tuning plan: change MACD condition from crossover to histogram > 0.',
-    solutionJa: 'MACD判定を「クロスオーバー瞬間」から「ヒストグラム > 0」に変更予定。',
+    solutionEn: 'Changed MACD condition from crossover to histogram > 0 (direction-based).',
+    solutionJa: 'MACD判定を「クロスオーバー瞬間」から「ヒストグラム方向（> 0）」に変更。',
     lessonEn: 'Always validate signal thresholds with backtesting before going live.',
     lessonJa: '本番前にシグナルの閾値をバックテストで必ず検証する。',
     accent: 'border-blue-400',
     iconCls: 'bg-blue-100 text-blue-600',
+  },
+  {
+    en: 'AI Lot Always Fixed at 1,000 — Two Bugs',
+    ja: 'AIロットが常に1,000固定 — 2つのバグ',
+    problemEn: '(1) News signal field was hardcoded to "IGNORE" — 698 of 931 items mislabeled. (2) Lot threshold (>0.5) never triggered for avg_sentiment in the real 0–0.5 range.',
+    problemJa: '(1) ニュースのsignalフィールドが常に"IGNORE"にハードコード（931件中698件が誤ラベル）。(2) ロット閾値(>0.5)が実際のavg_sentiment(0〜0.5)の範囲でほぼ発動しなかった。',
+    solutionEn: '(1) Added derive_signal() to set BUY_CANDIDATE / SELL_CANDIDATE from sentiment. Ran a backfill script to fix existing 698 records. (2) Rewrote determine_lot() with a linear scale: lot = 500 + min(1, |sentiment|/0.5) × 1,000.',
+    solutionJa: '(1) sentimentからsignalを導出するderive_signal()を追加。バックフィルスクリプトで698件を修正。(2) determine_lot()を線形スケールに書き直し: lot = 500 + min(1, |sentiment|/0.5) × 1,000。',
+    lessonEn: 'Default values in function signatures silently become production bugs. Verify that AI decisions actually vary — not just in theory but in the live logs.',
+    lessonJa: '関数のデフォルト引数が本番バグに化けることがある。AIの判断が実際に分布しているか、理論だけでなく本番ログで必ず確認する。',
+    accent: 'border-teal-400',
+    iconCls: 'bg-teal-100 text-teal-600',
   },
 ]
 

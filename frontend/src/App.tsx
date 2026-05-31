@@ -5,6 +5,7 @@ import { PositionDetailPage } from './pages/PositionDetailPage'
 import { NewsPage } from './pages/NewsPage'
 import { SignalsPage } from './pages/SignalsPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { PresentationPage } from './pages/PresentationPage'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route path="/news" element={<NewsPage />} />
           <Route path="/signals" element={<SignalsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/presentation" element={<PresentationPage />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
